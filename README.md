@@ -1,91 +1,124 @@
 # Traser Signal Radar
 
-Traser Signal Radar is a quick local-first tool for finding recent public discussions that look like active AI-agent debugging pain.
+A small signal dashboard for finding people who appear to be experiencing Traser-relevant AI-agent debugging pain right now.
 
-The current prototype runs on your Mac and uses temporary, no-key discovery paths while official Reddit Data API access is pending.
+The goal is not generic lead generation. It is to surface fresh, firsthand problem signals that can turn into real Traser investigations.
 
-## Current sources
+## What it covers now
 
-### Reddit
+- Reddit posts
+- Reddit comments
+- temporary LinkedIn discovery through Bing's public RSS search index
+- separate relevance and urgency scores
+- firsthand-problem detection
+- trace/artifact likelihood detection
+- browser-local outcome tracking
+- a simple Vercel-ready dashboard
 
-The collector reads each configured subreddit's public `new/.rss` feed, keeps recent posts, and filters/scorers them locally.
+## Signal model
 
-Current communities:
+Every result is scored and labeled with:
+
+- relevance score: how closely the content matches Traser's actual investigation problem
+- urgency score: whether the person appears to be dealing with the problem now
+- ownership: firsthand, secondhand, or general discussion
+- artifact likelihood: whether a trace, log, LangSmith/Langfuse run, export, span, or other execution artifact is likely available
+- overall score: weighted relevance + urgency
+
+The dashboard also lets you record outcomes:
+
+- Relevant
+- Responded
+- Trace requested
+- Trace received
+- Used Traser
+- Ignore
+
+Those outcomes are stored in the browser for now. There is intentionally no CRM or database yet.
+
+## Current Reddit communities
 
 - r/LangChain
 - r/AI_Agents
 - r/LocalLLaMA
 - r/LLMDevs
 
-This is intentionally a temporary path. It makes only a few read requests per scan and does not automate posting, commenting, voting, messaging, or outreach. If Reddit approves Data API access, this collector should be replaced with the official authenticated API.
+The temporary Reddit collector reads the public newest-post and newest-comment RSS feeds. This should be replaced by the approved Reddit Data API when access is granted.
 
-### LinkedIn
+## LinkedIn limitation
 
-LinkedIn does not expose a general public API for arbitrary global post search. The temporary collector therefore queries Bing's public RSS search results for indexed `linkedin.com/posts` pages.
+LinkedIn does not expose a general public API for arbitrary global post search. The temporary collector queries Bing's public RSS search results for indexed linkedin.com/posts pages.
 
-Important limitation: Bing can help discover public LinkedIn posts, but its RSS timestamp is not guaranteed to be the original LinkedIn publication time. LinkedIn results are therefore marked `timestampConfidence: "search-index-only"` and should not be treated as real-time monitoring.
-
-## What the tool does
-
-```text
-Reddit RSS ───────┐
-                  ├─ normalize ─ score ─ dedupe ─ print candidates
-Bing → LinkedIn ──┘
-```
-
-The score currently favors:
-
-- first-person problem language
-- words indicating something is wrong or actively failing
-- agent/LLM debugging terminology
-- recent Reddit posts
-- matching Traser-relevant failure terms
+LinkedIn timestamps are therefore not treated as original post timestamps. LinkedIn results are marked as search-index-only and should not be treated as real-time monitoring.
 
 ## Run locally
 
-Requirements:
-
-- Node.js 20+
-
-Then:
+Requires Node.js 20.9+.
 
 ```bash
 git clone https://github.com/Maas-Dorian/signl.git
 cd signl
 npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+The old terminal scanner still works:
+
+```bash
 npm run scan
 ```
 
-Optional environment variables:
+Optional:
 
 ```bash
-HOURS_BACK=72 MIN_SCORE=25 npm run scan
+HOURS_BACK=24 MIN_SCORE=40 npm run scan
 ```
 
-`HOURS_BACK` controls how old Reddit posts may be.
+## Deploy to Vercel
 
-`MIN_SCORE` controls what gets printed to the terminal.
+1. Import this GitHub repository into Vercel.
+2. Keep Framework Preset as Next.js.
+3. No environment variables are required for the current temporary collectors.
+4. Deploy.
 
-## Current project structure
+Vercel will run the collectors through `/api/signals` when the dashboard refreshes.
+
+Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/datacenter IPs. If that happens, the dashboard will still load and report the source error rather than failing the entire scan. Official Reddit API access is the durable fix.
+
+## Structure
 
 ```text
 .
-├── README.md
+├── app/
+│   ├── api/signals/route.js
+│   ├── globals.css
+│   ├── layout.js
+│   └── page.js
+├── collectors/
+│   ├── config.js
+│   ├── index.js
+│   ├── linkedin.js
+│   ├── reddit.js
+│   └── utils.js
 ├── package.json
-└── collectors/
-    ├── config.js
-    ├── index.js
-    ├── linkedin.js
-    ├── reddit.js
-    └── utils.js
+└── README.md
 ```
 
-## Next steps
+## Deliberate non-goals
 
-Once this basic collection path proves useful:
+For now this does not:
 
-1. replace Reddit RSS with the approved Reddit Data API
-2. add Hacker News and GitHub collectors
-3. persist seen URLs so repeated scans do not alert twice
-4. add notifications for high-scoring new signals
-5. tune scoring based on which signals actually produce real Traser investigations
+- automate Reddit or LinkedIn outreach
+- scrape logged-in LinkedIn pages
+- enrich people with sales data
+- act as a CRM
+- use an LLM for every result
+- claim a generic debugging mention validates Traser
+
+The point is to find fresh incidents, get to the conversation faster, ask for the run, and learn which signals actually turn into Traser usage.
