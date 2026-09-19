@@ -15,14 +15,13 @@ function parseBingRss(xml, query) {
     .filter((item) => String(item?.link || "").includes("linkedin.com"))
     .map((item) => ({
       source: "linkedin",
+      kind: "result",
       sourceId: item?.guid?.["#text"] || item?.guid || item?.link || "",
       community: "LinkedIn public web",
       author: "",
       title: stripHtml(item?.title || ""),
       text: stripHtml(item?.description || ""),
       url: item?.link || "",
-      // Bing's RSS date is useful as a search freshness hint, but it is NOT
-      // guaranteed to be the original LinkedIn post publication time.
       createdAt: null,
       indexedAt: item?.pubDate || null,
       discoveredAt: new Date().toISOString(),
@@ -31,24 +30,22 @@ function parseBingRss(xml, query) {
     }));
 }
 
-export async function collectLinkedIn() {
-  const all = [];
+async function fetchQuery(query) {
+  const q = `site:linkedin.com/posts ${query}`;
+  const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(q)}`;
 
-  for (const query of LINKEDIN_QUERIES) {
-    const q = `site:linkedin.com/posts ${query}`;
-    const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(q)}`;
-
-    try {
-      const xml = await fetchText(url);
-      const items = parseBingRss(xml, query)
-        .map((item) => scoreSignal(item, SIGNAL_TERMS))
-        .filter((item) => item.matchedTerms.length > 0);
-
-      all.push(...items);
-    } catch (error) {
-      console.error(`[linkedin] ${query}: ${error.message}`);
-    }
+  try {
+    const xml = await fetchText(url);
+    return parseBingRss(xml, query)
+      .map((item) => scoreSignal(item, SIGNAL_TERMS))
+      .filter((item) => item.matchedTerms.length > 0);
+  } catch (error) {
+    console.error(`[linkedin] ${query}: ${error.message}`);
+    return [];
   }
+}
 
-  return uniqueByUrl(all).sort((a, b) => b.score - a.score);
+export async function collectLinkedIn() {
+  const groups = await Promise.all(LINKEDIN_QUERIES.map(fetchQuery));
+  return uniqueByUrl(groups.flat()).sort((a, b) => b.score - a.score);
 }
