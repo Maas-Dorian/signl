@@ -1,0 +1,13 @@
+{
+  "name": "traser-signal-radar",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Local-first signal radar for recent AI-agent debugging discussions.",
+  "type": "module",
+  "scripts": {
+    "start": "node collectors/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
