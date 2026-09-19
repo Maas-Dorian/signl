@@ -1,3 +1,49 @@
+const FIRSTHAND_PATTERNS = [
+  /\b(i|i'm|i’m|im|my|mine)\b/i,
+  /\b(we|we're|we’re|our|ours)\b/i,
+  /\b(in our|on our|for our)\s+(agent|system|app|workflow|production|stack)\b/i,
+];
+
+const STRONG_URGENCY_PATTERNS = [
+  /\bright now\b/i,
+  /\bcurrently\b/i,
+  /\bstuck\b/i,
+  /\bcan't figure out\b/i,
+  /\bcannot figure out\b/i,
+  /\bkeeps? (failing|breaking|calling|looping|happening)\b/i,
+  /\bproduction (issue|incident|failure|bug)\b/i,
+  /\bspent (\w+ )?(hours?|all day)\b/i,
+  /\bblocked\b/i,
+];
+
+const PAIN_PATTERNS = [
+  /\b(can't|cannot|broken|failing|failed|wrong|incorrect|unexpected|bug|issue|problem)\b/i,
+  /\bdoesn't work\b/i,
+  /\bnot working\b/i,
+  /\bweird behavior\b/i,
+];
+
+const TECHNICAL_PATTERNS = [
+  /\b(agent|llm|langgraph|langchain|langsmith|langfuse|tool|trace|span|retrieval|state|retry|evaluator|workflow)\b/i,
+];
+
+const ARTIFACT_TERMS = [
+  "trace",
+  "traces",
+  "logs",
+  "log",
+  "langsmith",
+  "langfuse",
+  "span",
+  "spans",
+  "run id",
+  "execution",
+  "json",
+  "export",
+  "trajectory",
+  "events",
+];
+
 export function stripHtml(value = "") {
   return String(value)
     .replace(/<br\s*\/?>/gi, "\n")
@@ -26,53 +72,113 @@ export function isWithinHours(dateValue, hours) {
 export function uniqueByUrl(items) {
   const seen = new Set();
   return items.filter((item) => {
-    if (!item.url || seen.has(item.url)) return false;
-    seen.add(item.url);
+    const key = item.sourceId || item.url;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
 
-export function scoreSignal(item, terms) {
-  const haystack = `${item.title || ""} ${item.text || ""}`.toLowerCase();
-  let score = 0;
-  const matches = [];
+function detectOwnership(haystack) {
+  const firsthand = FIRSTHAND_PATTERNS.some((pattern) => pattern.test(haystack));
+  if (firsthand) return "firsthand";
 
-  for (const term of terms) {
-    if (haystack.includes(term.toLowerCase())) {
-      matches.push(term);
-      score += 8;
-    }
+  if (/\b(a client|a customer|someone on our team|one of our users)\b/i.test(haystack)) {
+    return "secondhand";
   }
 
-  const firstPerson = /\b(i|i'm|im|we|we're|our|my)\b/i.test(haystack);
-  const pain = /\b(can't|cannot|stuck|broken|failing|failed|wrong|incorrect|unexpected|hours|production)\b/i.test(haystack);
-  const technical = /\b(agent|llm|langgraph|langchain|langsmith|langfuse|tool|trace|retrieval|state|retry)\b/i.test(haystack);
+  return "general";
+}
 
-  if (firstPerson) score += 15;
-  if (pain) score += 20;
-  if (technical) score += 10;
+function detectArtifacts(haystack, ownership) {
+  const matches = ARTIFACT_TERMS.filter((term) => haystack.includes(term));
+  let level = "low";
 
-  if (item.createdAt) {
-    const ageHours = (Date.now() - new Date(item.createdAt).getTime()) / 36e5;
-    if (ageHours <= 3) score += 20;
-    else if (ageHours <= 24) score += 12;
-    else if (ageHours <= 72) score += 5;
+  if (matches.length >= 2 || (ownership === "firsthand" && matches.length >= 1)) {
+    level = "high";
+  } else if (matches.length === 1) {
+    level = "medium";
   }
 
   return {
+    level,
+    matches: [...new Set(matches)],
+  };
+}
+
+export function scoreSignal(item, terms) {
+  const haystack = `${item.title || ""} ${item.text || ""}`.toLowerCase();
+  const matchedTerms = [];
+
+  let relevanceScore = 0;
+  for (const term of terms) {
+    if (haystack.includes(term.toLowerCase())) {
+      matchedTerms.push(term);
+      relevanceScore += 6;
+    }
+  }
+
+  const technical = TECHNICAL_PATTERNS.some((pattern) => pattern.test(haystack));
+  const pain = PAIN_PATTERNS.some((pattern) => pattern.test(haystack));
+  const ownership = detectOwnership(haystack);
+
+  if (technical) relevanceScore += 16;
+  if (pain) relevanceScore += 14;
+  if (/\b(success|succeeded|completed|200|green)\b.*\b(wrong|incorrect|bad|unexpected)\b/i.test(haystack)) {
+    relevanceScore += 18;
+  }
+  if (/\b(wrong tool|tool choice|tool selection|state|retrieval|retry|trace|span)\b/i.test(haystack)) {
+    relevanceScore += 10;
+  }
+  if (ownership === "firsthand") relevanceScore += 8;
+
+  let urgencyScore = 0;
+  if (pain) urgencyScore += 22;
+  if (STRONG_URGENCY_PATTERNS.some((pattern) => pattern.test(haystack))) urgencyScore += 35;
+  if (ownership === "firsthand") urgencyScore += 16;
+  if (/\b(today|yesterday|this morning|tonight|this week)\b/i.test(haystack)) urgencyScore += 12;
+
+  if (item.createdAt) {
+    const ageHours = Math.max(0, (Date.now() - new Date(item.createdAt).getTime()) / 36e5);
+    if (ageHours <= 3) urgencyScore += 30;
+    else if (ageHours <= 12) urgencyScore += 24;
+    else if (ageHours <= 24) urgencyScore += 18;
+    else if (ageHours <= 72) urgencyScore += 8;
+  }
+
+  const artifact = detectArtifacts(haystack, ownership);
+  if (artifact.level === "high") relevanceScore += 8;
+  else if (artifact.level === "medium") relevanceScore += 4;
+
+  relevanceScore = Math.min(100, relevanceScore);
+  urgencyScore = Math.min(100, urgencyScore);
+
+  const score = Math.min(
+    100,
+    Math.round(relevanceScore * 0.62 + urgencyScore * 0.38)
+  );
+
+  return {
     ...item,
-    score: Math.min(score, 100),
-    matchedTerms: [...new Set(matches)],
+    score,
+    relevanceScore,
+    urgencyScore,
+    ownership,
+    firsthand: ownership === "firsthand",
+    artifactLikelihood: artifact.level,
+    artifactMatches: artifact.matches,
+    matchedTerms: [...new Set(matchedTerms)],
   };
 }
 
 export async function fetchText(url, headers = {}) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "TraserSignalRadar/0.1 local research tool",
+      "User-Agent": "TraserSignalRadar/0.2 local research tool",
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
       ...headers,
     },
+    cache: "no-store",
   });
 
   if (!response.ok) {
