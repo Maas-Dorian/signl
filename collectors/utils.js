@@ -179,6 +179,7 @@ export async function fetchText(url, headers = {}) {
       ...headers,
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(7000),
   });
 
   if (!response.ok) {
