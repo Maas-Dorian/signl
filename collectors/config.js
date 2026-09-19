@@ -62,10 +62,13 @@ export const GITHUB_QUERIES = [
 ];
 
 export const HN_QUERIES = [
-  "agent debugging",
+  "LLM debugging",
+  "AI agent debugging",
   "wrong tool call",
-  "LangGraph debugging",
+  "LangGraph",
+  "LangSmith",
   "LLM tracing",
   "agent observability",
+  "agent failure",
   "multi-agent debugging",
 ];
