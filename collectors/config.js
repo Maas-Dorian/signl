@@ -22,6 +22,10 @@ export const SIGNAL_TERMS = [
   "loop",
   "trace",
   "tracing",
+  "span",
+  "logs",
+  "execution",
+  "run id",
   "langsmith",
   "langfuse",
   "langgraph",
@@ -32,6 +36,9 @@ export const SIGNAL_TERMS = [
   "production agent",
   "multi-agent",
   "multi agent",
+  "retrieval",
+  "evaluator",
+  "verification",
 ];
 
 export const LINKEDIN_QUERIES = [
