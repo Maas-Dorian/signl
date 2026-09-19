@@ -51,3 +51,21 @@ export const LINKEDIN_QUERIES = [
   '"agent failed" LLM',
   '"multi-agent" debugging',
 ];
+
+export const GITHUB_QUERIES = [
+  '"agent debugging" is:issue',
+  '"wrong tool" agent is:issue',
+  '"wrong output" agent is:issue',
+  'langgraph debug is:issue',
+  'langsmith debug is:issue',
+  '"agent state" bug is:issue',
+];
+
+export const HN_QUERIES = [
+  "agent debugging",
+  "wrong tool call",
+  "LangGraph debugging",
+  "LLM tracing",
+  "agent observability",
+  "multi-agent debugging",
+];
