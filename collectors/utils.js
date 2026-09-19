@@ -188,3 +188,22 @@ export async function fetchText(url, headers = {}) {
 
   return response.text();
 }
+
+
+export async function fetchJson(url, headers = {}) {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "TraserSignalRadar/0.2",
+      Accept: "application/json",
+      ...headers,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(7000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} for ${url}`);
+  }
+
+  return response.json();
+}
