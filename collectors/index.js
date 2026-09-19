@@ -1,3 +1,5 @@
+import { collectGitHub } from "./github.js";
+import { collectHackerNews } from "./hackernews.js";
 import { collectLinkedIn } from "./linkedin.js";
 import { collectReddit } from "./reddit.js";
 
@@ -38,15 +40,20 @@ function printSignals(items) {
 }
 
 async function main() {
-  console.log("Scanning Reddit posts/comments and LinkedIn public search indexes...");
+  console.log("Scanning Reddit, LinkedIn, GitHub, and Hacker News...");
 
-  const [reddit, linkedin] = await Promise.all([
+  const [reddit, linkedin, github, hackernews] = await Promise.all([
     collectReddit(),
     collectLinkedIn(),
+    collectGitHub(),
+    collectHackerNews(),
   ]);
 
-  console.log(`Found ${reddit.length} Reddit candidates and ${linkedin.length} LinkedIn candidates.`);
-  printSignals([...reddit, ...linkedin]);
+  console.log(
+    `Found ${reddit.length} Reddit, ${linkedin.length} LinkedIn, ${github.length} GitHub, and ${hackernews.length} HN candidates.`
+  );
+
+  printSignals([...reddit, ...linkedin, ...github, ...hackernews]);
 }
 
 main().catch((error) => {
