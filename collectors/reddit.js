@@ -55,17 +55,17 @@ async function fetchSubredditFeed(subreddit, kind) {
 }
 
 export async function collectReddit() {
-  const all = [];
-
-  for (const subreddit of REDDIT_SUBREDDITS) {
-    for (const kind of ["post", "comment"]) {
+  const jobs = REDDIT_SUBREDDITS.flatMap((subreddit) =>
+    ["post", "comment"].map(async (kind) => {
       try {
-        all.push(...(await fetchSubredditFeed(subreddit, kind)));
+        return await fetchSubredditFeed(subreddit, kind);
       } catch (error) {
         console.error(`[reddit:${kind}] ${subreddit}: ${error.message}`);
+        return [];
       }
-    }
-  }
+    })
+  );
 
-  return uniqueByUrl(all).sort((a, b) => b.score - a.score);
+  const groups = await Promise.all(jobs);
+  return uniqueByUrl(groups.flat()).sort((a, b) => b.score - a.score);
 }
