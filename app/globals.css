@@ -202,6 +202,8 @@ select {
 
 .source.reddit { background: #2a1913; color: #ffb18d; }
 .source.linkedin { background: #122133; color: #8dc3ff; }
+.source.github { background: #1b1d22; color: #d5dae2; }
+.source.hackernews { background: #2b2116; color: #ffc27f; }
 
 .signal h3 {
   margin: 13px 0 8px;
