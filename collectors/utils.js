@@ -207,3 +207,25 @@ export async function fetchJson(url, headers = {}) {
 
   return response.json();
 }
+
+
+export async function postJson(url, body, headers = {}) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "User-Agent": "TraserSignalRadar/0.2",
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.timeout(7000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} for ${url}`);
+  }
+
+  return response.json();
+}
