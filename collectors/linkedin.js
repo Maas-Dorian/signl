@@ -1,11 +1,38 @@
 import { XMLParser } from "fast-xml-parser";
 import { LINKEDIN_QUERIES, SIGNAL_TERMS } from "./config.js";
-import { fetchText, scoreSignal, stripHtml, toArray, uniqueByUrl } from "./utils.js";
+import {
+  fetchJson,
+  fetchText,
+  scoreSignal,
+  stripHtml,
+  toArray,
+  uniqueByUrl,
+} from "./utils.js";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
 });
+
+function normalizeBraveResult(item, query) {
+  return {
+    source: "linkedin",
+    kind: "result",
+    sourceId: item.url || "",
+    community: "LinkedIn public web",
+    author: "",
+    title: stripHtml(item.title || ""),
+    text: stripHtml(item.description || ""),
+    url: item.url || "",
+    createdAt: null,
+    indexedAt: item.page_age || null,
+    fetchedAt: item.page_fetched || null,
+    discoveredAt: new Date().toISOString(),
+    timestampConfidence: "search-index-only",
+    discoveryProvider: "brave",
+    discoveryQuery: query,
+  };
+}
 
 function parseBingRss(xml, query) {
   const parsed = parser.parse(xml);
@@ -26,21 +53,58 @@ function parseBingRss(xml, query) {
       indexedAt: item?.pubDate || null,
       discoveredAt: new Date().toISOString(),
       timestampConfidence: "search-index-only",
+      discoveryProvider: "bing-fallback",
       discoveryQuery: query,
     }));
 }
 
-async function fetchQuery(query) {
+async function fetchBraveQuery(query) {
+  const q = `site:linkedin.com/posts ${query}`;
+  const params = new URLSearchParams({
+    q,
+    freshness: "pd",
+    count: "20",
+    country: "US",
+    search_lang: "en",
+  });
+
+  const data = await fetchJson(
+    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
+    {
+      "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY,
+    }
+  );
+
+  return (data?.web?.results || [])
+    .filter((item) => String(item?.url || "").includes("linkedin.com"))
+    .map((item) => normalizeBraveResult(item, query))
+    .map((item) => scoreSignal(item, SIGNAL_TERMS))
+    .filter((item) => item.matchedTerms.length > 0);
+}
+
+async function fetchBingQuery(query) {
   const q = `site:linkedin.com/posts ${query}`;
   const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(q)}`;
+  const xml = await fetchText(url);
+
+  return parseBingRss(xml, query)
+    .map((item) => scoreSignal(item, SIGNAL_TERMS))
+    .filter((item) => item.matchedTerms.length > 0);
+}
+
+async function fetchQuery(query) {
+  if (process.env.BRAVE_SEARCH_API_KEY) {
+    try {
+      return await fetchBraveQuery(query);
+    } catch (error) {
+      console.error(`[linkedin:brave] ${query}: ${error.message}; falling back to Bing`);
+    }
+  }
 
   try {
-    const xml = await fetchText(url);
-    return parseBingRss(xml, query)
-      .map((item) => scoreSignal(item, SIGNAL_TERMS))
-      .filter((item) => item.matchedTerms.length > 0);
+    return await fetchBingQuery(query);
   } catch (error) {
-    console.error(`[linkedin] ${query}: ${error.message}`);
+    console.error(`[linkedin:bing] ${query}: ${error.message}`);
     return [];
   }
 }
