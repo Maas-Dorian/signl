@@ -8,6 +8,9 @@ The goal is not generic lead generation. It is to surface fresh, firsthand probl
 
 - Reddit posts
 - Reddit comments
+- GitHub public issues
+- Hacker News stories
+- Hacker News comments
 - temporary LinkedIn discovery through Bing's public RSS search index
 - separate relevance and urgency scores
 - firsthand-problem detection
@@ -36,7 +39,11 @@ The dashboard also lets you record outcomes:
 
 Those outcomes are stored in the browser for now. There is intentionally no CRM or database yet.
 
-## Current Reddit communities
+## Sources
+
+### Reddit
+
+Current communities:
 
 - r/LangChain
 - r/AI_Agents
@@ -45,9 +52,23 @@ Those outcomes are stored in the browser for now. There is intentionally no CRM 
 
 The temporary Reddit collector reads the public newest-post and newest-comment RSS feeds. This should be replaced by the approved Reddit Data API when access is granted.
 
-## LinkedIn limitation
+### GitHub
 
-LinkedIn does not expose a general public API for arbitrary global post search. The temporary collector queries Bing's public RSS search results for indexed linkedin.com/posts pages.
+The GitHub collector searches newly-created public issues for Traser-relevant problem language such as agent debugging, wrong tool selection, wrong outputs, LangGraph debugging, LangSmith debugging, and agent state bugs.
+
+A token is optional for the prototype, but adding a read-only `GITHUB_TOKEN` in Vercel is recommended because unauthenticated GitHub Search API limits are much tighter.
+
+The current collector searches issues, not GitHub Discussions.
+
+### Hacker News
+
+Hacker News is queried through the public Algolia HN Search API. Both recent stories and comments are checked and then passed through the same relevance, urgency, firsthand, and artifact scoring used by the other sources.
+
+No API key is required.
+
+### LinkedIn
+
+LinkedIn does not expose a general public API for arbitrary global post search. The temporary collector queries Bing's public RSS search results for indexed `linkedin.com/posts` pages.
 
 LinkedIn timestamps are therefore not treated as original post timestamps. LinkedIn results are marked as search-index-only and should not be treated as real-time monitoring.
 
@@ -68,7 +89,7 @@ Open:
 http://localhost:3000
 ```
 
-The old terminal scanner still works:
+The terminal scanner also works:
 
 ```bash
 npm run scan
@@ -80,16 +101,22 @@ Optional:
 HOURS_BACK=24 MIN_SCORE=40 npm run scan
 ```
 
+For better GitHub API limits:
+
+```bash
+GITHUB_TOKEN=github_pat_xxx npm run scan
+```
+
 ## Deploy to Vercel
 
 1. Import this GitHub repository into Vercel.
 2. Keep Framework Preset as Next.js.
-3. No environment variables are required for the current temporary collectors.
-4. Deploy.
+3. Deploy.
+4. Optional but recommended: add `GITHUB_TOKEN` as a Vercel environment variable using a minimal read-only token.
 
-Vercel will run the collectors through `/api/signals` when the dashboard refreshes.
+The dashboard calls `/api/signals`, which runs all four collectors server-side and merges the results.
 
-Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/datacenter IPs. If that happens, the dashboard will still load and report the source error rather than failing the entire scan. Official Reddit API access is the durable fix.
+Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/datacenter IPs. If that happens, the dashboard still loads using the other sources. Official Reddit API access is the durable fix.
 
 ## Structure
 
@@ -102,6 +129,8 @@ Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/
 │   └── page.js
 ├── collectors/
 │   ├── config.js
+│   ├── github.js
+│   ├── hackernews.js
 │   ├── index.js
 │   ├── linkedin.js
 │   ├── reddit.js
@@ -114,7 +143,7 @@ Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/
 
 For now this does not:
 
-- automate Reddit or LinkedIn outreach
+- automate outreach
 - scrape logged-in LinkedIn pages
 - enrich people with sales data
 - act as a CRM
