@@ -34,6 +34,14 @@ function scoreClass(value) {
   return "cool";
 }
 
+function sourceLabel(source) {
+  if (source === "hackernews") return "Hacker News";
+  if (source === "github") return "GitHub";
+  if (source === "linkedin") return "LinkedIn";
+  if (source === "reddit") return "Reddit";
+  return source;
+}
+
 export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -109,8 +117,11 @@ export default function Home() {
 
       <section className="stats">
         <div className="stat"><span>Total found</span><strong>{stats.total ?? "—"}</strong></div>
+        <div className="stat"><span>Reddit</span><strong>{stats.reddit ?? "—"}</strong></div>
+        <div className="stat"><span>GitHub</span><strong>{stats.github ?? "—"}</strong></div>
+        <div className="stat"><span>Hacker News</span><strong>{stats.hackernews ?? "—"}</strong></div>
+        <div className="stat"><span>LinkedIn</span><strong>{stats.linkedin ?? "—"}</strong></div>
         <div className="stat"><span>Firsthand</span><strong>{stats.firsthand ?? "—"}</strong></div>
-        <div className="stat"><span>Reddit comments</span><strong>{stats.comments ?? "—"}</strong></div>
         <div className="stat"><span>High artifact chance</span><strong>{stats.highArtifact ?? "—"}</strong></div>
       </section>
 
@@ -120,6 +131,8 @@ export default function Home() {
           <select value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="all">All</option>
             <option value="reddit">Reddit</option>
+            <option value="github">GitHub</option>
+            <option value="hackernews">Hacker News</option>
             <option value="linkedin">LinkedIn</option>
           </select>
         </label>
@@ -138,8 +151,10 @@ export default function Home() {
           Type
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="all">All</option>
-            <option value="post">Post</option>
+            <option value="post">Reddit post</option>
             <option value="comment">Comment</option>
+            <option value="issue">GitHub issue</option>
+            <option value="story">HN story</option>
             <option value="result">Indexed result</option>
           </select>
         </label>
@@ -200,7 +215,7 @@ export default function Home() {
             <article className="signal" key={key}>
               <div className="signal-top">
                 <div className="source-line">
-                  <span className={`source ${item.source}`}>{item.source}</span>
+                  <span className={`source ${item.source}`}>{sourceLabel(item.source)}</span>
                   <span>{item.community}</span>
                   <span>{item.kind || "indexed result"}</span>
                   <span>{ageLabel(item.createdAt)}</span>
