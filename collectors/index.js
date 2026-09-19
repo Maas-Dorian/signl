@@ -23,23 +23,22 @@ function printSignals(items) {
 
   for (const item of filtered) {
     console.log("\n" + "=".repeat(80));
-    console.log(`[${item.source.toUpperCase()}] score=${item.score} | ${ageLabel(item)}`);
-    console.log(item.community || "");
+    console.log(
+      `[${item.source.toUpperCase()}] ${item.kind || "result"} | score=${item.score} | rel=${item.relevanceScore} | urgency=${item.urgencyScore} | ${ageLabel(item)}`
+    );
+    console.log(`${item.community || ""} | ownership=${item.ownership} | artifact=${item.artifactLikelihood}`);
     console.log(item.title || "(no title)");
     if (item.text) console.log(item.text.slice(0, 350));
     console.log(`matched: ${item.matchedTerms.join(", ")}`);
+    if (item.artifactMatches?.length) console.log(`artifacts: ${item.artifactMatches.join(", ")}`);
     console.log(item.url);
-
-    if (item.source === "linkedin") {
-      console.log("LinkedIn time note: discovered through Bing; original post time is not verified.");
-    }
   }
 
   console.log(`\n${filtered.length} signal(s) above MIN_SCORE=${MIN_SCORE}.`);
 }
 
 async function main() {
-  console.log("Scanning Reddit RSS and LinkedIn public search indexes...");
+  console.log("Scanning Reddit posts/comments and LinkedIn public search indexes...");
 
   const [reddit, linkedin] = await Promise.all([
     collectReddit(),
