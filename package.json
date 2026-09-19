@@ -1,17 +1,22 @@
 {
   "name": "traser-signal-radar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Local-first signal radar for recent AI-agent debugging discussions.",
+  "description": "Signal radar for recent AI-agent debugging discussions.",
   "type": "module",
   "scripts": {
-    "start": "node collectors/index.js",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "scan": "node collectors/index.js"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.2.5"
+    "fast-xml-parser": "^5.2.5",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   }
 }
