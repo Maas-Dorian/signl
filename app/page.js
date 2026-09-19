@@ -42,6 +42,18 @@ function sourceLabel(source) {
   return source;
 }
 
+function sourceActionLabel(item) {
+  if (item.source === "reddit") {
+    return item.kind === "comment" ? "Open Reddit comment ↗" : "Open Reddit post ↗";
+  }
+  if (item.source === "github") return "Open GitHub issue ↗";
+  if (item.source === "hackernews") {
+    return item.kind === "comment" ? "Open HN comment ↗" : "Open HN story ↗";
+  }
+  if (item.source === "linkedin") return "Open LinkedIn post ↗";
+  return "Open source ↗";
+}
+
 export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -230,6 +242,13 @@ export default function Home() {
               </h3>
               {item.text && <p className="snippet">{item.text.slice(0, 620)}</p>}
 
+              <div className="source-link-row">
+                <a className="source-link-button" href={item.url} target="_blank" rel="noreferrer">
+                  {sourceActionLabel(item)}
+                </a>
+                <span className="source-url" title={item.url}>{item.url}</span>
+              </div>
+
               <div className="score-grid">
                 <div>
                   <span>Overall</span>
@@ -269,7 +288,6 @@ export default function Home() {
               )}
 
               <div className="actions">
-                <a href={item.url} target="_blank" rel="noreferrer">Open source</a>
                 <div className="outcomes">
                   {OUTCOMES.map((value) => (
                     <button
