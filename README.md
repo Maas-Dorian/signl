@@ -11,7 +11,7 @@ The goal is not generic lead generation. It is to surface fresh, firsthand probl
 - GitHub public issues
 - Hacker News stories
 - Hacker News comments
-- temporary LinkedIn discovery through Bing's public RSS search index
+- LinkedIn discovery through Brave Search, with Bing RSS as a fallback
 - separate relevance and urgency scores
 - firsthand-problem detection
 - trace/artifact likelihood detection
@@ -68,9 +68,11 @@ No API key is required.
 
 ### LinkedIn
 
-LinkedIn does not expose a general public API for arbitrary global post search. The temporary collector queries Bing's public RSS search results for indexed `linkedin.com/posts` pages.
+LinkedIn does not expose a general public API for arbitrary global post search. The collector therefore uses Brave Search as the primary discovery layer for indexed `linkedin.com/posts` pages.
 
-LinkedIn timestamps are therefore not treated as original post timestamps. LinkedIn results are marked as search-index-only and should not be treated as real-time monitoring.
+Set `BRAVE_SEARCH_API_KEY` to enable Brave. The collector uses Brave's last-24-hours freshness filter and requests up to 20 results per query. If the Brave key is missing or Brave fails, Signl falls back to Bing's public RSS search results.
+
+LinkedIn timestamps are still not treated as guaranteed original post timestamps. Search-engine freshness and page-age metadata are useful discovery hints, but they are not equivalent to a LinkedIn-native publication timestamp.
 
 ## Run locally
 
@@ -112,7 +114,8 @@ GITHUB_TOKEN=github_pat_xxx npm run scan
 1. Import this GitHub repository into Vercel.
 2. Keep Framework Preset as Next.js.
 3. Deploy.
-4. Optional but recommended: add `GITHUB_TOKEN` as a Vercel environment variable using a minimal read-only token.
+4. Add `BRAVE_SEARCH_API_KEY` as a Vercel environment variable for Brave-powered LinkedIn discovery.
+5. Optional but recommended: add `GITHUB_TOKEN` as a Vercel environment variable using a minimal read-only token.
 
 The dashboard calls `/api/signals`, which runs all four collectors server-side and merges the results.
 
