@@ -1,8 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import { LINKEDIN_QUERIES, SIGNAL_TERMS } from "./config.js";
 import {
-  fetchJson,
   fetchText,
+  postJson,
   scoreSignal,
   stripHtml,
   toArray,
@@ -14,22 +14,21 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
-function normalizeBraveResult(item, query) {
+function normalizeSerperResult(item, query) {
   return {
     source: "linkedin",
     kind: "result",
-    sourceId: item.url || "",
+    sourceId: item.link || "",
     community: "LinkedIn public web",
     author: "",
     title: stripHtml(item.title || ""),
-    text: stripHtml(item.description || ""),
-    url: item.url || "",
+    text: stripHtml(item.snippet || ""),
+    url: item.link || "",
     createdAt: null,
-    indexedAt: item.page_age || null,
-    fetchedAt: item.page_fetched || null,
+    indexedAt: item.date || null,
     discoveredAt: new Date().toISOString(),
     timestampConfidence: "search-index-only",
-    discoveryProvider: "brave",
+    discoveryProvider: "serper",
     discoveryQuery: query,
   };
 }
@@ -58,26 +57,26 @@ function parseBingRss(xml, query) {
     }));
 }
 
-async function fetchBraveQuery(query) {
+async function fetchSerperQuery(query) {
   const q = `site:linkedin.com/posts ${query}`;
-  const params = new URLSearchParams({
-    q,
-    freshness: "pd",
-    count: "20",
-    country: "US",
-    search_lang: "en",
-  });
 
-  const data = await fetchJson(
-    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
+  const data = await postJson(
+    "https://google.serper.dev/search",
     {
-      "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY,
+      q,
+      gl: "us",
+      hl: "en",
+      num: 20,
+      tbs: "qdr:d",
+    },
+    {
+      "X-API-KEY": process.env.SERPER_API_KEY,
     }
   );
 
-  return (data?.web?.results || [])
-    .filter((item) => String(item?.url || "").includes("linkedin.com"))
-    .map((item) => normalizeBraveResult(item, query))
+  return (data?.organic || [])
+    .filter((item) => String(item?.link || "").includes("linkedin.com"))
+    .map((item) => normalizeSerperResult(item, query))
     .map((item) => scoreSignal(item, SIGNAL_TERMS))
     .filter((item) => item.matchedTerms.length > 0);
 }
@@ -93,11 +92,11 @@ async function fetchBingQuery(query) {
 }
 
 async function fetchQuery(query) {
-  if (process.env.BRAVE_SEARCH_API_KEY) {
+  if (process.env.SERPER_API_KEY) {
     try {
-      return await fetchBraveQuery(query);
+      return await fetchSerperQuery(query);
     } catch (error) {
-      console.error(`[linkedin:brave] ${query}: ${error.message}; falling back to Bing`);
+      console.error(`[linkedin:serper] ${query}: ${error.message}; falling back to Bing`);
     }
   }
 
