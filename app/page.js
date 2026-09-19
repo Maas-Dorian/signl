@@ -223,7 +223,11 @@ export default function Home() {
                 {outcome && <span className="outcome-pill">{outcome}</span>}
               </div>
 
-              <h3>{item.title || "Untitled signal"}</h3>
+              <h3>
+                <a className="signal-title-link" href={item.url} target="_blank" rel="noreferrer">
+                  {item.title || "Untitled signal"}
+                </a>
+              </h3>
               {item.text && <p className="snippet">{item.text.slice(0, 620)}</p>}
 
               <div className="score-grid">
