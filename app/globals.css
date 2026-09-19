@@ -1,0 +1,351 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0b0d10;
+  color: #f4f6f8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% -10%, rgba(96, 109, 255, 0.12), transparent 34%),
+    #0b0d10;
+  min-height: 100vh;
+}
+
+button, select, input { font: inherit; }
+
+main {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 80px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #8d96a6;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(32px, 6vw, 54px);
+  letter-spacing: -0.05em;
+}
+
+.subhead {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: #9aa3b1;
+  line-height: 1.55;
+}
+
+.refresh {
+  border: 1px solid #343a46;
+  background: #f3f5f7;
+  color: #0b0d10;
+  border-radius: 10px;
+  padding: 11px 15px;
+  cursor: pointer;
+}
+
+.refresh:disabled { opacity: 0.55; cursor: default; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  border: 1px solid #232831;
+  background: rgba(17, 20, 25, 0.9);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.stat span {
+  display: block;
+  color: #8992a1;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.stat strong { font-size: 26px; }
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.4fr auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid #232831;
+  background: #101318;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.controls label {
+  color: #8992a1;
+  font-size: 12px;
+}
+
+select {
+  width: 100%;
+  margin-top: 7px;
+  background: #171b21;
+  color: #eef1f5;
+  border: 1px solid #303641;
+  border-radius: 8px;
+  padding: 9px;
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.range-row input { width: 100%; }
+
+.range-row span {
+  min-width: 28px;
+  color: #eef1f5;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 9px;
+  white-space: nowrap;
+}
+
+.notice {
+  border: 1px solid #5c4b1f;
+  background: #211c10;
+  color: #d9c47c;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.notice.error {
+  border-color: #623039;
+  background: #201216;
+  color: #ef9da8;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  margin: 22px 0 10px;
+}
+
+.list-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.list-header p {
+  margin: 4px 0 0;
+  color: #737d8c;
+  font-size: 12px;
+}
+
+.signals { display: grid; gap: 10px; }
+
+.signal {
+  border: 1px solid #232831;
+  background: rgba(16, 19, 24, 0.94);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.signal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.source-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: #737d8c;
+  font-size: 12px;
+}
+
+.source {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #232831;
+  color: #cbd2db;
+}
+
+.source.reddit { background: #2a1913; color: #ffb18d; }
+.source.linkedin { background: #122133; color: #8dc3ff; }
+
+.signal h3 {
+  margin: 13px 0 8px;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.snippet {
+  margin: 0;
+  color: #aab1bd;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.score-grid > div {
+  border: 1px solid #242a33;
+  background: #0d1014;
+  border-radius: 9px;
+  padding: 10px;
+}
+
+.score-grid span {
+  display: block;
+  color: #687281;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.score-grid strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+strong.hot { color: #8ce9a5; }
+strong.warm { color: #e7d07d; }
+strong.cool { color: #aeb6c2; }
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.chips span {
+  border: 1px solid #2b313b;
+  background: #15191f;
+  color: #8f99a8;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.chips .artifact {
+  color: #c5b5ff;
+  border-color: #40345f;
+  background: #181424;
+}
+
+.timestamp-note {
+  color: #747e8c;
+  font-size: 11px;
+  margin: 10px 0 0;
+}
+
+.actions {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid #232831;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions > a {
+  color: #f0f3f7;
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.outcomes {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.outcomes button {
+  border: 1px solid #303641;
+  background: #15191f;
+  color: #8992a1;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.outcomes button.active {
+  color: #f1f4f8;
+  border-color: #6a7483;
+  background: #252b34;
+}
+
+.outcome-pill {
+  color: #cbd2db;
+  background: #222831;
+  border: 1px solid #343b47;
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.empty {
+  border: 1px dashed #2c333d;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  color: #788291;
+}
+
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .controls { grid-template-columns: repeat(2, 1fr); }
+  .score-grid { grid-template-columns: repeat(2, 1fr); }
+  .topbar { flex-direction: column; }
+  .refresh { width: 100%; }
+}
+
+@media (max-width: 620px) {
+  main { width: min(100% - 20px, 1180px); padding-top: 22px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .controls { grid-template-columns: 1fr; }
+  .score-grid { grid-template-columns: 1fr 1fr; }
+  .actions { align-items: flex-start; flex-direction: column; }
+  .outcomes { justify-content: flex-start; }
+}
