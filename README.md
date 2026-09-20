@@ -1,8 +1,8 @@
 # Traser Signal Radar
 
-A small signal dashboard for finding people who appear to be experiencing Traser-relevant AI-agent debugging pain right now.
+A small signal dashboard for finding companies and engineers who appear to be experiencing Traser-relevant AI-agent failures right now.
 
-The goal is not generic lead generation. Signl is optimized for one outcome: finding people who are likely to have a concrete Traser-shaped incident, usable execution evidence, and enough urgency to actually try the product.
+The goal is not generic lead generation. Signl now works in two directions: developer-side investigation signals and customer-side product complaints. Customer complaints help identify which agent companies may be hurting; technical signals help determine whether the failure shape is actually relevant to Traser.
 
 ## What it covers now
 
@@ -10,6 +10,9 @@ The goal is not generic lead generation. Signl is optimized for one outcome: fin
 - GitHub public issues
 - Hacker News stories and comments
 - LinkedIn discovery through Serper/Google results, with Bing RSS as a fallback
+- a curated 50-company agent-native watchlist
+- public complaint discovery across Trustpilot, Reddit, G2, Capterra, Product Hunt, and Reviews.io search results
+- company-level aggregation with Traser-shaped failure classifications
 - relevance, urgency, and activation-readiness scoring
 - firsthand-problem and concrete-incident detection
 - multi-step investigation-fit detection
@@ -20,6 +23,38 @@ The goal is not generic lead generation. Signl is optimized for one outcome: fin
 - source/query conversion summaries
 - lightweight repeated-author relationship hints
 - a simple Vercel-ready dashboard
+
+## Company pain radar
+
+Signl keeps a curated watchlist of 50 relatively small agent-native companies spanning browser agents, coding agents, voice agents, support agents, workflow automation, financial agents, GTM agents, and AI coworkers.
+
+The company collector does not treat a bad review as proof that Traser found the company's internal bug. It uses indexed public complaints as discovery evidence and looks for symptom shapes such as:
+
+- completed-but-wrong behavior
+- retry or loop behavior
+- duplicate external side effects
+- wrong external actions
+- state or memory drift
+- handoff or verification failures
+
+Obvious billing, customer-service, login, outage, and refund-only complaints are penalized so Signl does not manufacture a Traser angle where one is not supported.
+
+To control Serper usage, the 50 companies are searched in five batches rather than one API call per company. When Serper is unavailable, Bing RSS is used as a fallback. Search-engine dates remain discovery hints, not verified event timestamps.
+
+The company dashboard shows:
+
+- account score
+- watchlist priority
+- product shape
+- public evidence count
+- high-fit complaint count
+- observed failure shapes
+- direct evidence links
+- a suggested next action
+
+The intended workflow is:
+
+public customer symptom → company → confirm Traser-shaped failure → identify technical owner → reproduce only when credible → ask to investigate a real run.
 
 ## Signal model
 
@@ -166,7 +201,7 @@ GITHUB_TOKEN=github_pat_xxx npm run scan
 4. Add `SERPER_API_KEY` as a Vercel environment variable for Google-powered LinkedIn discovery through Serper.
 5. Optional but recommended: add `GITHUB_TOKEN` as a Vercel environment variable using a minimal read-only token.
 
-The dashboard calls `/api/signals`, which runs all four collectors server-side and merges the results.
+The dashboard calls `/api/signals`, which runs Reddit, LinkedIn, GitHub, Hacker News, and the company pain collector server-side. The company watchlist remains visible even when no matching complaint is found.
 
 Important: Reddit may occasionally rate-limit or reject RSS requests from cloud/datacenter IPs. If that happens, the dashboard still loads using the other sources. Official Reddit API access is the durable fix.
 
@@ -181,5 +216,6 @@ For now this does not:
 - use an LLM for every result
 - claim that a generic debugging mention validates Traser
 - automatically turn every adjacent debugging problem into a Traser lead
+- claim that a customer complaint reveals the company's internal root cause
 
 The point is to get from fresh public evidence to the right person, the right incident, and an actual Traser investigation faster.
