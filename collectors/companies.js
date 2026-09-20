@@ -92,10 +92,11 @@ function normalizedText(value = "") {
 
 function companyMatchScore(company, haystack) {
   const name = company.name.toLowerCase();
+  const nameTokens = new Set(name.split(/[^a-z0-9]+/).filter(Boolean));
   const queryTokens = company.queryName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((token) => token.length >= 3 && !["the", "and", "agents", "agent", "startup"].includes(token));
+    .filter((token) => token.length >= 3 && !nameTokens.has(token) && !["the", "and", "agents", "agent", "startup"].includes(token));
 
   let score = 0;
   if (haystack.includes(name)) score += 4;
@@ -241,7 +242,7 @@ async function searchBatch(batch) {
           gl: "us",
           hl: "en",
           num: 20,
-          tbs: "qdr:m",
+          tbs: "qdr:y",
         },
         {
           "X-API-KEY": process.env.SERPER_API_KEY,
@@ -296,7 +297,7 @@ function aggregateCompanies(signals) {
     const shapes = [...new Set(evidence.flatMap((item) => item.traserShapes || []))];
     const nonFit = [...new Set(evidence.flatMap((item) => item.nonFitReasons || []))];
 
-    let accountScore = company.priority === "A" ? 32 : 22;
+    let accountScore = evidence.length > 0 ? (company.priority === "A" ? 32 : 22) : 0;
     accountScore += Math.min(24, evidence.length * 4);
     accountScore += Math.min(30, highFit.length * 10);
     accountScore += Math.min(14, shapes.length * 4);
