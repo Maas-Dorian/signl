@@ -186,8 +186,9 @@ export default function Home() {
   const rawSignals = data?.signals || [];
   const companyRadar = data?.companies || { companies: [], coverage: {} };
   const visibleCompanies = useMemo(() => {
-    const active = (companyRadar.companies || []).filter((company) => accountStages[company.id] !== "Ignore");
-    if (showAllCompanies) return active;
+    const all = companyRadar.companies || [];
+    if (showAllCompanies) return all;
+    const active = all.filter((company) => accountStages[company.id] !== "Ignore");
     const withEvidence = active.filter((company) => company.evidenceCount > 0);
     return (withEvidence.length > 0 ? withEvidence : active).slice(0, 12);
   }, [companyRadar.companies, accountStages, showAllCompanies]);
