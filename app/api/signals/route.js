@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { collectCompanies } from "../../../collectors/companies.js";
 import { collectGitHub } from "../../../collectors/github.js";
 import { collectHackerNews } from "../../../collectors/hackernews.js";
 import { collectLinkedIn } from "../../../collectors/linkedin.js";
@@ -11,11 +12,12 @@ export const maxDuration = 30;
 export async function GET() {
   const startedAt = Date.now();
 
-  const [redditResult, linkedinResult, githubResult, hackerNewsResult] = await Promise.allSettled([
+  const [redditResult, linkedinResult, githubResult, hackerNewsResult, companyResult] = await Promise.allSettled([
     collectRedditDetailed(),
     collectLinkedIn(),
     collectGitHub(),
     collectHackerNews(),
+    collectCompanies(),
   ]);
 
   const redditDetailed =
@@ -28,6 +30,21 @@ export async function GET() {
   const linkedin = linkedinResult.status === "fulfilled" ? linkedinResult.value : [];
   const github = githubResult.status === "fulfilled" ? githubResult.value : [];
   const hackernews = hackerNewsResult.status === "fulfilled" ? hackerNewsResult.value : [];
+  const companiesDetailed =
+    companyResult.status === "fulfilled"
+      ? companyResult.value
+      : {
+          companies: [],
+          signals: [],
+          coverage: {
+            companiesTotal: 50,
+            companiesWithEvidence: 0,
+            highFitSignals: 0,
+            searches: 0,
+            providers: [],
+            errors: [],
+          },
+        };
 
   const errors = [];
   const results = [
@@ -35,6 +52,7 @@ export async function GET() {
     ["linkedin", linkedinResult],
     ["github", githubResult],
     ["hackernews", hackerNewsResult],
+    ["companies", companyResult],
   ];
 
   for (const [source, result] of results) {
@@ -75,6 +93,9 @@ export async function GET() {
       highArtifact: signals.filter((item) => item.artifactLikelihood === "high").length,
       activationReady: signals.filter((item) => (item.activationReadiness || 0) >= 70).length,
       nonFit: signals.filter((item) => (item.nonFitReasons || []).length > 0).length,
+      targetCompanies: companiesDetailed.coverage.companiesTotal,
+      companiesWithEvidence: companiesDetailed.coverage.companiesWithEvidence,
+      companyHighFitSignals: companiesDetailed.coverage.highFitSignals,
     },
     reddit: {
       coverage: redditCoverage,
@@ -82,6 +103,11 @@ export async function GET() {
       communitiesWithMatches: redditCoverage.filter((entry) => entry.matchedCount > 0).length,
       communitiesHealthy: redditCoverage.filter((entry) => entry.status === "ok").length,
       communitiesTotal: redditCoverage.length,
+    },
+    companies: {
+      accounts: companiesDetailed.companies,
+      signals: companiesDetailed.signals,
+      coverage: companiesDetailed.coverage,
     },
     errors,
     signals,
