@@ -4,14 +4,59 @@ import { useEffect, useMemo, useState } from "react";
 
 const OUTCOMES = [
   "Relevant",
-  "Responded",
-  "Trace requested",
-  "Trace received",
-  "Used Traser",
+  "Engaged",
+  "Concrete incident",
+  "Artifact available",
+  "Asked to try",
+  "Started Traser",
+  "Blocked",
+  "Completed investigation",
+  "Useful",
+  "Not useful",
+  "Repeat use",
   "Ignore",
 ];
 
-const STORAGE_KEY = "traser-signal-radar-outcomes-v1";
+const BLOCKERS = [
+  "",
+  "Could not export trace",
+  "Unsupported format",
+  "No trace available",
+  "Privacy/company restriction",
+  "Did not have time",
+  "Problem already solved",
+  "Not painful enough",
+  "Traser import failed",
+  "Traser result not useful",
+  "Other",
+];
+
+const STORAGE_KEY = "traser-signal-radar-outcomes-v2";
+const BLOCKER_KEY = "traser-signal-radar-blockers-v1";
+const LEGACY_STORAGE_KEY = "traser-signal-radar-outcomes-v1";
+
+const STAGE_RANK = {
+  Relevant: 1,
+  Engaged: 2,
+  "Concrete incident": 3,
+  "Artifact available": 4,
+  "Asked to try": 5,
+  "Started Traser": 6,
+  Blocked: 6,
+  "Completed investigation": 7,
+  Useful: 8,
+  "Not useful": 8,
+  "Repeat use": 9,
+  Ignore: 0,
+};
+
+function migrateLegacy(value) {
+  if (value === "Responded") return "Engaged";
+  if (value === "Trace requested") return "Asked to try";
+  if (value === "Trace received") return "Artifact available";
+  if (value === "Used Traser") return "Started Traser";
+  return value;
+}
 
 function ageLabel(value) {
   if (!value) return "time unverified";
@@ -26,6 +71,11 @@ function ageLabel(value) {
 
 function signalKey(item) {
   return item.sourceId || item.url;
+}
+
+function personKey(item) {
+  const author = String(item.author || "").trim().toLowerCase();
+  return author ? `${item.source}:${author}` : "";
 }
 
 function scoreClass(value) {
@@ -54,21 +104,38 @@ function sourceActionLabel(item) {
   return "Open source ↗";
 }
 
+function compatibilityLabel(value) {
+  if (value === "high") return "LangSmith-ready";
+  if (value === "partial") return "light transform";
+  if (value === "adapter-needed") return "adapter needed";
+  return "unknown compatibility";
+}
+
+function isAtLeast(outcome, stage) {
+  return (STAGE_RANK[outcome] || 0) >= STAGE_RANK[stage];
+}
+
 export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [outcomes, setOutcomes] = useState({});
+  const [blockers, setBlockers] = useState({});
   const [source, setSource] = useState("all");
   const [ownership, setOwnership] = useState("all");
   const [kind, setKind] = useState("all");
-  const [minScore, setMinScore] = useState(35);
+  const [minActivation, setMinActivation] = useState(35);
   const [showIgnored, setShowIgnored] = useState(false);
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      setOutcomes(saved);
+      const savedV2 = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "{}");
+      const migrated = Object.fromEntries(
+        Object.entries(legacy).map(([key, value]) => [key, migrateLegacy(value)])
+      );
+      setOutcomes({ ...migrated, ...savedV2 });
+      setBlockers(JSON.parse(localStorage.getItem(BLOCKER_KEY) || "{}"));
     } catch {}
     refresh();
   }, []);
@@ -89,28 +156,75 @@ export default function Home() {
 
   function setOutcome(item, value) {
     const key = signalKey(item);
-    const next = {
-      ...outcomes,
-      [key]: value,
-    };
+    const next = { ...outcomes, [key]: value };
     setOutcomes(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  function setBlocker(item, value) {
+    const key = signalKey(item);
+    const next = { ...blockers, [key]: value };
+    setBlockers(next);
+    localStorage.setItem(BLOCKER_KEY, JSON.stringify(next));
+  }
+
+  const rawSignals = data?.signals || [];
+
+  const people = useMemo(() => {
+    const map = new Map();
+    for (const item of rawSignals) {
+      const key = personKey(item);
+      if (!key) continue;
+      const current = map.get(key) || { count: 0, highestStage: "", author: item.author, source: item.source };
+      current.count += 1;
+      const outcome = outcomes[signalKey(item)];
+      if ((STAGE_RANK[outcome] || 0) > (STAGE_RANK[current.highestStage] || 0)) {
+        current.highestStage = outcome;
+      }
+      map.set(key, current);
+    }
+    return map;
+  }, [rawSignals, outcomes]);
+
   const signals = useMemo(() => {
-    const raw = data?.signals || [];
-    return raw.filter((item) => {
+    return rawSignals.filter((item) => {
       const outcome = outcomes[signalKey(item)];
       if (!showIgnored && outcome === "Ignore") return false;
       if (source !== "all" && item.source !== source) return false;
       if (ownership !== "all" && item.ownership !== ownership) return false;
       if (kind !== "all" && (item.kind || "result") !== kind) return false;
-      if (item.score < minScore) return false;
+      if ((item.activationReadiness || 0) < minActivation) return false;
       return true;
     });
-  }, [data, outcomes, source, ownership, kind, minScore, showIgnored]);
+  }, [rawSignals, outcomes, source, ownership, kind, minActivation, showIgnored]);
+
+  const conversionRows = useMemo(() => {
+    const groups = new Map();
+    for (const item of rawSignals) {
+      const label = item.discoveryQuery || sourceLabel(item.source);
+      const current = groups.get(label) || { label, found: 0, engaged: 0, started: 0, completed: 0, useful: 0 };
+      current.found += 1;
+      const outcome = outcomes[signalKey(item)];
+      if (isAtLeast(outcome, "Engaged")) current.engaged += 1;
+      if (isAtLeast(outcome, "Started Traser")) current.started += 1;
+      if (isAtLeast(outcome, "Completed investigation")) current.completed += 1;
+      if (outcome === "Useful" || outcome === "Repeat use") current.useful += 1;
+      groups.set(label, current);
+    }
+
+    return [...groups.values()]
+      .sort((a, b) =>
+        b.completed - a.completed ||
+        b.started - a.started ||
+        b.engaged - a.engaged ||
+        b.found - a.found
+      )
+      .slice(0, 10);
+  }, [rawSignals, outcomes]);
 
   const stats = data?.counts || {};
+  const blockedCount = Object.values(outcomes).filter((value) => value === "Blocked").length;
+  const completedCount = Object.values(outcomes).filter((value) => isAtLeast(value, "Completed investigation")).length;
 
   return (
     <main>
@@ -119,7 +233,7 @@ export default function Home() {
           <p className="eyebrow">TRASER</p>
           <h1>Signal Radar</h1>
           <p className="subhead">
-            Find people who appear to be actively experiencing the debugging problem Traser is built for.
+            Find the people most likely to have a Traser-shaped incident, usable evidence, and a reason to try the product now.
           </p>
         </div>
         <button className="refresh" onClick={refresh} disabled={loading}>
@@ -129,12 +243,13 @@ export default function Home() {
 
       <section className="stats">
         <div className="stat"><span>Total found</span><strong>{stats.total ?? "—"}</strong></div>
-        <div className="stat"><span>Reddit</span><strong>{stats.reddit ?? "—"}</strong></div>
-        <div className="stat"><span>GitHub</span><strong>{stats.github ?? "—"}</strong></div>
-        <div className="stat"><span>Hacker News</span><strong>{stats.hackernews ?? "—"}</strong></div>
-        <div className="stat"><span>LinkedIn</span><strong>{stats.linkedin ?? "—"}</strong></div>
-        <div className="stat"><span>Firsthand</span><strong>{stats.firsthand ?? "—"}</strong></div>
+        <div className="stat"><span>Activation-ready</span><strong>{stats.activationReady ?? "—"}</strong></div>
+        <div className="stat"><span>Concrete incidents</span><strong>{stats.concreteIncident ?? "—"}</strong></div>
         <div className="stat"><span>High artifact chance</span><strong>{stats.highArtifact ?? "—"}</strong></div>
+        <div className="stat"><span>Firsthand</span><strong>{stats.firsthand ?? "—"}</strong></div>
+        <div className="stat"><span>Completed</span><strong>{completedCount}</strong></div>
+        <div className="stat"><span>Blocked</span><strong>{blockedCount}</strong></div>
+        <div className="stat"><span>Non-fit flags</span><strong>{stats.nonFit ?? "—"}</strong></div>
       </section>
 
       <section className="controls">
@@ -172,16 +287,16 @@ export default function Home() {
         </label>
 
         <label className="score-control">
-          Minimum score
+          Minimum activation
           <div className="range-row">
             <input
               type="range"
               min="0"
               max="100"
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
+              value={minActivation}
+              onChange={(e) => setMinActivation(Number(e.target.value))}
             />
-            <span>{minScore}</span>
+            <span>{minActivation}</span>
           </div>
         </label>
 
@@ -202,9 +317,33 @@ export default function Home() {
         </div>
       )}
 
+      {conversionRows.length > 0 && (
+        <section className="conversion-panel">
+          <div className="section-title">
+            <h2>Which searches turn into usage?</h2>
+            <p>Local outcomes only. This gets more useful as you mark real conversations and investigations.</p>
+          </div>
+          <div className="conversion-table">
+            <div className="conversion-row conversion-head">
+              <span>Source / query</span><span>Found</span><span>Engaged</span><span>Started</span><span>Completed</span><span>Useful</span>
+            </div>
+            {conversionRows.map((row) => (
+              <div className="conversion-row" key={row.label}>
+                <span title={row.label}>{row.label}</span>
+                <span>{row.found}</span>
+                <span>{row.engaged}</span>
+                <span>{row.started}</span>
+                <span>{row.completed}</span>
+                <span>{row.useful}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="list-header">
         <div>
-          <h2>{signals.length} visible signals</h2>
+          <h2>{signals.length} activation candidates</h2>
           <p>
             {data?.scannedAt ? `Last scan ${new Date(data.scannedAt).toLocaleTimeString()}` : "Waiting for first scan"}
           </p>
@@ -216,13 +355,16 @@ export default function Home() {
 
         {!loading && signals.length === 0 && (
           <div className="empty">
-            Nothing matches these filters yet. Lower the minimum score or refresh later.
+            Nothing matches these filters yet. Lower the minimum activation score or refresh later.
           </div>
         )}
 
         {signals.map((item) => {
           const key = signalKey(item);
           const outcome = outcomes[key];
+          const person = people.get(personKey(item));
+          const blocker = blockers[key] || "";
+
           return (
             <article className="signal" key={key}>
               <div className="signal-top">
@@ -231,6 +373,8 @@ export default function Home() {
                   <span>{item.community}</span>
                   <span>{item.kind || "indexed result"}</span>
                   <span>{ageLabel(item.createdAt)}</span>
+                  {item.author && <span>@{item.author}</span>}
+                  {person?.count > 1 && <span className="relationship-pill">seen in {person.count} signals</span>}
                 </div>
                 {outcome && <span className="outcome-pill">{outcome}</span>}
               </div>
@@ -251,8 +395,8 @@ export default function Home() {
 
               <div className="score-grid">
                 <div>
-                  <span>Overall</span>
-                  <strong className={scoreClass(item.score)}>{item.score}</strong>
+                  <span>Activation</span>
+                  <strong className={scoreClass(item.activationReadiness)}>{item.activationReadiness}</strong>
                 </div>
                 <div>
                   <span>Relevance</span>
@@ -267,17 +411,28 @@ export default function Home() {
                   <strong>{item.ownership}</strong>
                 </div>
                 <div>
-                  <span>Artifact chance</span>
+                  <span>Artifact</span>
                   <strong>{item.artifactLikelihood}</strong>
+                </div>
+                <div>
+                  <span>Compatibility</span>
+                  <strong>{compatibilityLabel(item.artifactCompatibility)}</strong>
                 </div>
               </div>
 
               <div className="chips">
-                {item.matchedTerms?.slice(0, 8).map((term) => (
-                  <span key={term}>{term}</span>
+                {item.concreteIncident && <span className="positive">concrete incident</span>}
+                {item.multistep && <span className="positive">multi-step</span>}
+                {item.artifactPlatforms?.slice(0, 3).map((platform) => (
+                  <span className="artifact" key={`${platform.name}-${platform.compatibility}`}>
+                    {platform.name}: {platform.compatibility}
+                  </span>
                 ))}
-                {item.artifactMatches?.slice(0, 5).map((term) => (
-                  <span className="artifact" key={`artifact-${term}`}>artifact: {term}</span>
+                {item.nonFitReasons?.map((reason) => (
+                  <span className="nonfit" key={reason}>non-fit: {reason}</span>
+                ))}
+                {item.matchedTerms?.slice(0, 6).map((term) => (
+                  <span key={term}>{term}</span>
                 ))}
               </div>
 
@@ -299,6 +454,17 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
+
+                {(outcome === "Blocked" || blocker) && (
+                  <label className="blocker-control">
+                    Blocker
+                    <select value={blocker} onChange={(e) => setBlocker(item, e.target.value)}>
+                      {BLOCKERS.map((value) => (
+                        <option key={value || "none"} value={value}>{value || "Choose blocker"}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
             </article>
           );
