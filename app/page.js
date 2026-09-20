@@ -34,6 +34,8 @@ const BLOCKERS = [
 const STORAGE_KEY = "traser-signal-radar-outcomes-v2";
 const BLOCKER_KEY = "traser-signal-radar-blockers-v1";
 const LEGACY_STORAGE_KEY = "traser-signal-radar-outcomes-v1";
+const ACCOUNT_STORAGE_KEY = "traser-signal-radar-account-stages-v1";
+const ACCOUNT_STAGES = ["Watch", "Reproduce", "Contacted", "Investigation", "Ignore"];
 
 const STAGE_RANK = {
   Relevant: 1,
@@ -127,6 +129,8 @@ export default function Home() {
   const [community, setCommunity] = useState("all");
   const [minActivation, setMinActivation] = useState(35);
   const [showIgnored, setShowIgnored] = useState(false);
+  const [accountStages, setAccountStages] = useState({});
+  const [showAllCompanies, setShowAllCompanies] = useState(false);
   const [companyPriority, setCompanyPriority] = useState("all");
   const [companyCategory, setCompanyCategory] = useState("all");
   const [showAllCompanies, setShowAllCompanies] = useState(false);
@@ -140,6 +144,7 @@ export default function Home() {
       );
       setOutcomes({ ...migrated, ...savedV2 });
       setBlockers(JSON.parse(localStorage.getItem(BLOCKER_KEY) || "{}"));
+      setAccountStages(JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "{}"));
     } catch {}
     refresh();
   }, []);
@@ -172,7 +177,20 @@ export default function Home() {
     localStorage.setItem(BLOCKER_KEY, JSON.stringify(next));
   }
 
+  function setAccountStage(company, value) {
+    const next = { ...accountStages, [company.id]: value };
+    setAccountStages(next);
+    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(next));
+  }
+
   const rawSignals = data?.signals || [];
+  const companyRadar = data?.companies || { companies: [], coverage: {} };
+  const visibleCompanies = useMemo(() => {
+    const active = (companyRadar.companies || []).filter((company) => accountStages[company.id] !== "Ignore");
+    if (showAllCompanies) return active;
+    const withEvidence = active.filter((company) => company.evidenceCount > 0);
+    return (withEvidence.length > 0 ? withEvidence : active).slice(0, 12);
+  }, [companyRadar.companies, accountStages, showAllCompanies]);
 
   const people = useMemo(() => {
     const map = new Map();
@@ -249,7 +267,7 @@ export default function Home() {
           <p className="eyebrow">TRASER</p>
           <h1>Signal Radar</h1>
           <p className="subhead">
-            Find the people most likely to have a Traser-shaped incident, usable evidence, and a reason to try the product now.
+            Find companies showing customer-visible agent failures, then find the engineers most likely to have a Traser-shaped investigation.
           </p>
         </div>
         <button className="refresh" onClick={refresh} disabled={loading}>
@@ -375,6 +393,94 @@ export default function Home() {
             {showAllCompanies ? "Show top 12" : `Show all ${filteredCompanies.length} companies`}
           </button>
         )}
+      </section>
+
+      <section className="company-radar">
+        <div className="company-radar-head">
+          <div>
+            <p className="eyebrow">ACCOUNT RADAR</p>
+            <h2>50 agent-native companies worth watching</h2>
+            <p>
+              Customer complaints are the discovery layer. A review is not proof of an internal root cause, so Signl separately flags failure shapes that look plausibly useful for Traser.
+            </p>
+          </div>
+          <button className="secondary-control" type="button" onClick={() => setShowAllCompanies((value) => !value)}>
+            {showAllCompanies ? "Show active pain only" : "Show all 50"}
+          </button>
+        </div>
+
+        <div className="company-radar-summary">
+          <span><strong>{companyRadar.coverage?.companiesTotal ?? 50}</strong> tracked</span>
+          <span><strong>{companyRadar.coverage?.companiesWithEvidence ?? 0}</strong> with public pain</span>
+          <span><strong>{companyRadar.coverage?.highFitSignals ?? 0}</strong> high-fit signals</span>
+          <span><strong>{companyRadar.coverage?.searches ?? 0}</strong> batched searches</span>
+        </div>
+
+        <div className="company-grid">
+          {visibleCompanies.map((company) => {
+            const stage = accountStages[company.id];
+            return (
+              <article className="company-card" key={company.id}>
+                <div className="company-card-top">
+                  <div>
+                    <div className="company-name-line">
+                      <h3>{company.name}</h3>
+                      <span className={`priority priority-${company.priority?.toLowerCase()}`}>P{company.priority}</span>
+                    </div>
+                    <p>{company.category}{company.teamSize ? ` · ~${company.teamSize} team` : ""}</p>
+                  </div>
+                  <div className="account-score">
+                    <span>Account</span>
+                    <strong className={scoreClass(company.accountScore || 0)}>{company.accountScore || 0}</strong>
+                  </div>
+                </div>
+
+                <p className="company-shape">{company.productShape}</p>
+
+                <div className="company-metrics">
+                  <span>{company.evidenceCount} complaint matches</span>
+                  <span>{company.highFitCount} high-fit</span>
+                  <span>{company.shapes?.length || 0} failure shapes</span>
+                </div>
+
+                <div className="chips company-watch">
+                  {(company.shapes?.length ? company.shapes : company.watchFor || []).slice(0, 5).map((value) => (
+                    <span className={company.shapes?.includes(value) ? "positive" : ""} key={value}>{value}</span>
+                  ))}
+                </div>
+
+                {company.evidence?.length > 0 ? (
+                  <div className="company-evidence">
+                    {company.evidence.slice(0, 3).map((item) => (
+                      <a href={item.url} target="_blank" rel="noreferrer" key={item.sourceId || item.url}>
+                        <span>{item.sourceSurface || item.community} · fit {item.fitScore}</span>
+                        <strong>{item.title || item.text?.slice(0, 90) || "Public complaint"}</strong>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="company-no-evidence">No qualifying public complaint surfaced in this scan. Keep watching; do not invent a pain story.</p>
+                )}
+
+                <p className="company-next">{company.nextAction}</p>
+
+                <div className="account-actions">
+                  {ACCOUNT_STAGES.map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      className={stage === value ? "active" : ""}
+                      onClick={() => setAccountStage(company, value)}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                  <a href={company.sourceUrl} target="_blank" rel="noreferrer">Company evidence ↗</a>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="controls">
