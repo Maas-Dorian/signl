@@ -412,6 +412,8 @@ export default function Home() {
 
         <div className="company-radar-summary">
           <span><strong>{companyRadar.coverage?.companiesTotal ?? 50}</strong> tracked</span>
+          <span><strong>{(companyRadar.companies || []).filter((company) => company.cohort === "independent").length}</strong> independent</span>
+          <span><strong>{(companyRadar.companies || []).filter((company) => company.cohort === "yc").length}</strong> YC</span>
           <span><strong>{companyRadar.coverage?.companiesWithEvidence ?? 0}</strong> with public pain</span>
           <span><strong>{companyRadar.coverage?.highFitSignals ?? 0}</strong> high-fit signals</span>
           <span><strong>{companyRadar.coverage?.searches ?? 0}</strong> batched searches</span>
@@ -427,6 +429,7 @@ export default function Home() {
                     <div className="company-name-line">
                       <h3>{company.name}</h3>
                       <span className={`priority priority-${company.priority?.toLowerCase()}`}>P{company.priority}</span>
+                      <span className="cohort-pill">{company.cohort === "yc" ? "YC" : "Independent"}</span>
                     </div>
                     <p>{company.category}{company.teamSize ? ` · ~${company.teamSize} team` : ""}</p>
                   </div>
