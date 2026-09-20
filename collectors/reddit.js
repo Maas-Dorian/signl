@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { HOURS_BACK, REDDIT_SUBREDDITS, SIGNAL_TERMS } from "./config.js";
-import { fetchText, isWithinHours, scoreSignal, stripHtml, toArray, uniqueByUrl } from "./utils.js";
+import { fetchText, isWithinHours, postJson, scoreSignal, stripHtml, toArray, uniqueByUrl } from "./utils.js";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -62,6 +62,46 @@ async function fetchSubredditFeed(subreddit, kind) {
   };
 }
 
+async function fetchSerperFallback(subreddit) {
+  if (!process.env.SERPER_API_KEY) return [];
+
+  const q = `site:reddit.com/r/${subreddit} ("agent debugging" OR "wrong tool" OR "wrong output" OR retry OR trace OR "agent state")`;
+  const data = await postJson(
+    "https://google.serper.dev/search",
+    {
+      q,
+      gl: "us",
+      hl: "en",
+      num: 10,
+      tbs: "qdr:w",
+    },
+    {
+      "X-API-KEY": process.env.SERPER_API_KEY,
+    }
+  );
+
+  return (data?.organic || [])
+    .filter((item) => String(item?.link || "").includes(`reddit.com/r/${subreddit}`))
+    .map((item) => ({
+      source: "reddit",
+      kind: "result",
+      sourceId: item.link || "",
+      community: `r/${subreddit}`,
+      author: "",
+      title: stripHtml(item.title || ""),
+      text: stripHtml(item.snippet || ""),
+      url: item.link || "",
+      createdAt: null,
+      indexedAt: item.date || null,
+      discoveredAt: new Date().toISOString(),
+      timestampConfidence: "search-index-only",
+      discoveryProvider: "serper-reddit-fallback",
+      discoveryQuery: `r/${subreddit}`,
+    }))
+    .map((item) => scoreSignal(item, SIGNAL_TERMS))
+    .filter((item) => item.matchedTerms.length > 0);
+}
+
 async function collectSubreddit(subreddit) {
   const kinds = ["post", "comment"];
   const settled = await Promise.allSettled(kinds.map((kind) => fetchSubredditFeed(subreddit, kind)));
@@ -88,6 +128,23 @@ async function collectSubreddit(subreddit) {
     }
   });
 
+  let fallbackUsed = false;
+  if (kindsOk.length === 0 && process.env.SERPER_API_KEY) {
+    try {
+      const fallbackItems = await fetchSerperFallback(subreddit);
+      if (fallbackItems.length > 0) {
+        items.push(...fallbackItems);
+        fallbackUsed = true;
+      }
+    } catch (error) {
+      errors.push({
+        kind: "serper-fallback",
+        message: error.message || "Serper fallback failed",
+      });
+      console.error(`[reddit:serper] ${subreddit}: ${error.message}`);
+    }
+  }
+
   return {
     subreddit,
     community: `r/${subreddit}`,
@@ -100,7 +157,15 @@ async function collectSubreddit(subreddit) {
       matchedCount: items.length,
       kindsOk,
       errors,
-      status: kindsOk.length === kinds.length ? "ok" : kindsOk.length > 0 ? "partial" : "failed",
+      fallbackUsed,
+      status:
+        kindsOk.length === kinds.length
+          ? "ok"
+          : kindsOk.length > 0
+            ? "partial"
+            : fallbackUsed
+              ? "search-fallback"
+              : "failed",
     },
   };
 }
