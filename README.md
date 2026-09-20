@@ -88,12 +88,14 @@ Current communities:
 
 - r/LangChain
 - r/AI_Agents
+- r/aiagents
+- r/learnAIAgents
 - r/LocalLLaMA
 - r/LLMDevs
 - r/MCP
 - r/RAG
 
-The temporary Reddit collector reads public newest-post and newest-comment RSS feeds. This should be replaced by the approved Reddit Data API when access is granted.
+The Reddit collector scans each configured subreddit independently for both new posts and new comments. The dashboard exposes per-subreddit feed health, recent items scanned, and matched signal counts so one community cannot silently masquerade as full Reddit coverage. If both RSS feeds for a subreddit fail and `SERPER_API_KEY` is configured, Signl uses a targeted Google/Serper search fallback for that subreddit. This should still be replaced by the approved Reddit Data API when access is granted.
 
 New communities should be kept only if they produce qualified conversations or investigations. Signl should not become a broad Reddit monitoring tool.
 
