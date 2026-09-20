@@ -3,6 +3,8 @@ export const HOURS_BACK = Number(process.env.HOURS_BACK || 72);
 export const REDDIT_SUBREDDITS = [
   "LangChain",
   "AI_Agents",
+  "aiagents",
+  "learnAIAgents",
   "LocalLLaMA",
   "LLMDevs",
   "MCP",
