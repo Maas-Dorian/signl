@@ -41,6 +41,9 @@ export async function GET() {
   }
 
   const signals = [...reddit, ...linkedin, ...github, ...hackernews].sort((a, b) => {
+    if ((b.activationReadiness || 0) !== (a.activationReadiness || 0)) {
+      return (b.activationReadiness || 0) - (a.activationReadiness || 0);
+    }
     if (b.score !== a.score) return b.score - a.score;
     const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -58,7 +61,10 @@ export async function GET() {
       hackernews: hackernews.length,
       comments: signals.filter((item) => item.kind === "comment").length,
       firsthand: signals.filter((item) => item.firsthand).length,
+      concreteIncident: signals.filter((item) => item.concreteIncident).length,
       highArtifact: signals.filter((item) => item.artifactLikelihood === "high").length,
+      activationReady: signals.filter((item) => (item.activationReadiness || 0) >= 70).length,
+      nonFit: signals.filter((item) => (item.nonFitReasons || []).length > 0).length,
     },
     errors,
     signals,
