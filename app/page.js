@@ -351,7 +351,7 @@ export default function Home() {
         </section>
       )}
 
-      {error && <div className="notice error">{error}</div>
+      {error && <div className="notice error">{error}</div>}
       {data?.errors?.length > 0 && (
         <div className="notice">
           Some sources had errors: {data.errors.map((item) => item.source).join(", ")}.
