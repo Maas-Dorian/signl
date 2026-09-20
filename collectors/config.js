@@ -11,6 +11,9 @@ export const REDDIT_SUBREDDITS = [
   "RAG",
 ];
 
+export const REDDIT_SEARCH_QUERY =
+  'debugging agent OR "wrong tool" OR "wrong output" OR "agent failed" OR "agent state" OR retry OR trace OR tracing OR LangGraph OR LangSmith OR Langfuse';
+
 export const SIGNAL_TERMS = [
   "debug",
   "debugging",
