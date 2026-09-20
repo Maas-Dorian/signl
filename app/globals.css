@@ -1051,3 +1051,13 @@ strong.cool { color: #aeb6c2; }
   .secondary-control { width: 100%; }
   .account-actions a { width: 100%; margin-left: 0; margin-top: 5px; }
 }
+
+
+.cohort-pill {
+  border: 1px solid #343b47;
+  background: #15191f;
+  color: #8f99a8;
+  border-radius: 999px;
+  padding: 3px 6px;
+  font-size: 9px;
+}
