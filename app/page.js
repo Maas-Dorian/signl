@@ -127,6 +127,9 @@ export default function Home() {
   const [community, setCommunity] = useState("all");
   const [minActivation, setMinActivation] = useState(35);
   const [showIgnored, setShowIgnored] = useState(false);
+  const [companyPriority, setCompanyPriority] = useState("all");
+  const [companyCategory, setCompanyCategory] = useState("all");
+  const [showAllCompanies, setShowAllCompanies] = useState(false);
 
   useEffect(() => {
     try {
@@ -225,6 +228,15 @@ export default function Home() {
   }, [rawSignals, outcomes]);
 
   const stats = data?.counts || {};
+  const companyAccounts = data?.companies?.accounts || [];
+  const companyCoverage = data?.companies?.coverage;
+  const companyCategories = [...new Set(companyAccounts.map((company) => company.category).filter(Boolean))].sort();
+  const filteredCompanies = companyAccounts.filter((company) => {
+    if (companyPriority !== "all" && company.priority !== companyPriority) return false;
+    if (companyCategory !== "all" && company.category !== companyCategory) return false;
+    return true;
+  });
+  const visibleCompanies = showAllCompanies ? filteredCompanies : filteredCompanies.slice(0, 12);
   const redditCoverage = data?.reddit?.coverage || [];
   const redditCommunities = redditCoverage.map((entry) => entry.community);
   const blockedCount = Object.values(outcomes).filter((value) => value === "Blocked").length;
@@ -254,6 +266,115 @@ export default function Home() {
         <div className="stat"><span>Completed</span><strong>{completedCount}</strong></div>
         <div className="stat"><span>Blocked</span><strong>{blockedCount}</strong></div>
         <div className="stat"><span>Non-fit flags</span><strong>{stats.nonFit ?? "—"}</strong></div>
+        <div className="stat"><span>Target companies</span><strong>{stats.targetCompanies ?? "—"}</strong></div>
+        <div className="stat"><span>Companies w/ evidence</span><strong>{stats.companiesWithEvidence ?? "—"}</strong></div>
+        <div className="stat"><span>High-fit complaints</span><strong>{stats.companyHighFitSignals ?? "—"}</strong></div>
+      </section>
+
+      <section className="company-radar">
+        <div className="company-radar-head">
+          <div className="section-title">
+            <h2>Company pain radar</h2>
+            <p>
+              50 small agent-native companies. Public customer complaints are discovery evidence only, not proof of the internal root cause.
+              {companyCoverage ? ` ${companyCoverage.companiesWithEvidence} companies have matching public evidence this scan.` : ""}
+            </p>
+          </div>
+
+          <div className="company-filters">
+            <label>
+              Priority
+              <select value={companyPriority} onChange={(event) => setCompanyPriority(event.target.value)}>
+                <option value="all">All</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <select value={companyCategory} onChange={(event) => setCompanyCategory(event.target.value)}>
+                <option value="all">All categories</option>
+                {companyCategories.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {companyCoverage?.errors?.length > 0 && (
+          <div className="notice">
+            Company review search had {companyCoverage.errors.length} failed batch{companyCoverage.errors.length === 1 ? "" : "es"}. The 50-company watchlist is still shown.
+          </div>
+        )}
+
+        <div className="company-grid">
+          {visibleCompanies.map((company) => (
+            <article className="company-card" key={company.id}>
+              <div className="company-card-head">
+                <div>
+                  <div className="company-meta">
+                    <span className={`priority priority-${company.priority.toLowerCase()}`}>Priority {company.priority}</span>
+                    <span>{company.category}</span>
+                    {company.teamSize ? <span>{company.teamSize} people</span> : null}
+                  </div>
+                  <h3>{company.name}</h3>
+                </div>
+                <div className="company-score">
+                  <strong className={scoreClass(company.accountScore)}>{company.accountScore}</strong>
+                  <span>account score</span>
+                </div>
+              </div>
+
+              <p className="company-shape">{company.productShape}</p>
+
+              <div className="company-counts">
+                <span><strong>{company.evidenceCount}</strong> public matches</span>
+                <span><strong>{company.highFitCount}</strong> high-fit</span>
+              </div>
+
+              <div className="chips company-chips">
+                {(company.shapes?.length ? company.shapes : company.watchFor || []).slice(0, 5).map((value) => (
+                  <span className={company.shapes?.includes(value) ? "positive" : ""} key={value}>
+                    {company.shapes?.includes(value) ? `observed: ${value}` : `watch: ${value}`}
+                  </span>
+                ))}
+              </div>
+
+              {company.evidence?.length > 0 ? (
+                <div className="company-evidence">
+                  {company.evidence.slice(0, 3).map((evidence) => (
+                    <a href={evidence.url} target="_blank" rel="noreferrer" key={evidence.sourceId || evidence.url}>
+                      <div>
+                        <span>{evidence.sourceSurface}</span>
+                        <strong>{evidence.title || "Public complaint"}</strong>
+                        {evidence.text && <small>{evidence.text.slice(0, 180)}</small>}
+                      </div>
+                      <b className={scoreClass(evidence.fitScore)}>{evidence.fitScore}</b>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="company-empty">No matching public complaint surfaced in this scan. Keep it on the watchlist; do not manufacture a Traser angle.</p>
+              )}
+
+              <div className="company-next">
+                <span>Next action</span>
+                <p>{company.nextAction}</p>
+              </div>
+
+              <a className="company-source-link" href={company.sourceUrl} target="_blank" rel="noreferrer">
+                Open seed source ↗
+              </a>
+            </article>
+          ))}
+        </div>
+
+        {filteredCompanies.length > 12 && (
+          <button className="show-more-companies" type="button" onClick={() => setShowAllCompanies((value) => !value)}>
+            {showAllCompanies ? "Show top 12" : `Show all ${filteredCompanies.length} companies`}
+          </button>
+        )}
       </section>
 
       <section className="controls">
