@@ -124,6 +124,7 @@ export default function Home() {
   const [source, setSource] = useState("all");
   const [ownership, setOwnership] = useState("all");
   const [kind, setKind] = useState("all");
+  const [community, setCommunity] = useState("all");
   const [minActivation, setMinActivation] = useState(35);
   const [showIgnored, setShowIgnored] = useState(false);
 
@@ -193,10 +194,11 @@ export default function Home() {
       if (source !== "all" && item.source !== source) return false;
       if (ownership !== "all" && item.ownership !== ownership) return false;
       if (kind !== "all" && (item.kind || "result") !== kind) return false;
+      if (community !== "all" && item.community !== community) return false;
       if ((item.activationReadiness || 0) < minActivation) return false;
       return true;
     });
-  }, [rawSignals, outcomes, source, ownership, kind, minActivation, showIgnored]);
+  }, [rawSignals, outcomes, source, ownership, kind, community, minActivation, showIgnored]);
 
   const conversionRows = useMemo(() => {
     const groups = new Map();
@@ -223,6 +225,8 @@ export default function Home() {
   }, [rawSignals, outcomes]);
 
   const stats = data?.counts || {};
+  const redditCoverage = data?.reddit?.coverage || [];
+  const redditCommunities = redditCoverage.map((entry) => entry.community);
   const blockedCount = Object.values(outcomes).filter((value) => value === "Blocked").length;
   const completedCount = Object.values(outcomes).filter((value) => isAtLeast(value, "Completed investigation")).length;
 
@@ -286,6 +290,16 @@ export default function Home() {
           </select>
         </label>
 
+        <label>
+          Reddit community
+          <select value={community} onChange={(e) => setCommunity(e.target.value)}>
+            <option value="all">All communities</option>
+            {redditCommunities.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+
         <label className="score-control">
           Minimum activation
           <div className="range-row">
@@ -310,7 +324,34 @@ export default function Home() {
         </label>
       </section>
 
-      {error && <div className="notice error">{error}</div>}
+      {redditCoverage.length > 0 && (
+        <section className="reddit-coverage">
+          <div className="section-title">
+            <h2>Reddit coverage</h2>
+            <p>
+              Scanning {data?.reddit?.communitiesTotal ?? redditCoverage.length} communities,
+              {" "}{data?.reddit?.communitiesHealthy ?? 0} healthy feeds,
+              {" "}{data?.reddit?.communitiesWithMatches ?? 0} with Traser-relevant matches this scan.
+            </p>
+          </div>
+          <div className="coverage-grid">
+            {redditCoverage.map((entry) => (
+              <button
+                key={entry.community}
+                className={`coverage-card ${community === entry.community ? "active" : ""}`}
+                onClick={() => setCommunity(community === entry.community ? "all" : entry.community)}
+                type="button"
+              >
+                <span>{entry.community}</span>
+                <strong>{entry.matchedCount}</strong>
+                <small>{entry.status} · {entry.recentCount} recent scanned</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {error && <div className="notice error">{error}</div>
       {data?.errors?.length > 0 && (
         <div className="notice">
           Some sources had errors: {data.errors.map((item) => item.source).join(", ")}.
