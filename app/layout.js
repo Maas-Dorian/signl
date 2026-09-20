@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Traser Signal Radar",
-  description: "Fresh AI-agent debugging pain signals for Traser.",
+  description: "Company pain and developer debugging signals for Traser.",
 };
 
 export default function RootLayout({ children }) {
