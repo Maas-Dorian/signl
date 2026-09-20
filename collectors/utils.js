@@ -27,21 +27,46 @@ const TECHNICAL_PATTERNS = [
   /\b(agent|llm|langgraph|langchain|langsmith|langfuse|tool|trace|span|retrieval|state|retry|evaluator|workflow)\b/i,
 ];
 
-const ARTIFACT_TERMS = [
-  "trace",
-  "traces",
-  "logs",
-  "log",
-  "langsmith",
-  "langfuse",
-  "span",
-  "spans",
-  "run id",
-  "execution",
-  "json",
-  "export",
-  "trajectory",
-  "events",
+const CONCRETE_INCIDENT_PATTERNS = [
+  /\b(our|my|we)\b.{0,60}\b(run|agent|workflow|system|trace|tool|production)\b/i,
+  /\b(yesterday|today|last night|this morning|in production|prod)\b/i,
+  /\b(spent|took)\b.{0,20}\b(hours?|minutes?|day)\b/i,
+  /\b(success|succeeded|completed|200|green)\b.{0,80}\b(wrong|incorrect|bad|unexpected|duplicate)\b/i,
+];
+
+const MULTISTEP_PATTERNS = [
+  /\b(retry|handoff|upstream|downstream|state|planner|evaluator|retrieval|tool call|multi[- ]agent|workflow)\b/i,
+  /\b(step|span|trace|run)\b.{0,60}\b(step|span|trace|run)\b/i,
+  /\b(write|tool|agent)\b.{0,80}\b(readback|read-back|next step|later|retry|state)\b/i,
+];
+
+const NON_FIT_RULES = [
+  { reason: "basic setup/install problem", pattern: /\b(install|installation|npm install|pip install|module not found|package not found|dependency error)\b/i, penalty: 24 },
+  { reason: "auth/API-key setup", pattern: /\b(api key|invalid key|unauthorized|401|403|oauth setup|login issue)\b/i, penalty: 18 },
+  { reason: "ordinary crash/exception", pattern: /\b(stack trace|syntaxerror|typeerror|segfault|compile error|build failed)\b/i, penalty: 18 },
+  { reason: "generic model-quality complaint", pattern: /\b(model is dumb|hallucinat(?:e|ed|ing)|bad answers? generally|model quality)\b/i, penalty: 16 },
+  { reason: "isolated retrieval/embedding issue", pattern: /\b(embedding lookup|vector search only|embedding model)\b/i, penalty: 12 },
+];
+
+const ARTIFACT_DEFINITIONS = [
+  { term: "langsmith", platform: "LangSmith", compatibility: "high" },
+  { term: "langfuse", platform: "Langfuse", compatibility: "partial" },
+  { term: "phoenix", platform: "Arize Phoenix", compatibility: "partial" },
+  { term: "openinference", platform: "Arize Phoenix/OpenInference", compatibility: "partial" },
+  { term: "opentelemetry", platform: "OpenTelemetry", compatibility: "adapter-needed" },
+  { term: "otel", platform: "OpenTelemetry", compatibility: "adapter-needed" },
+  { term: "braintrust", platform: "Braintrust", compatibility: "adapter-needed" },
+  { term: "trace", platform: "Generic trace", compatibility: "unknown" },
+  { term: "traces", platform: "Generic trace", compatibility: "unknown" },
+  { term: "span", platform: "Generic spans", compatibility: "unknown" },
+  { term: "spans", platform: "Generic spans", compatibility: "unknown" },
+  { term: "json", platform: "JSON export", compatibility: "unknown" },
+  { term: "export", platform: "Export", compatibility: "unknown" },
+  { term: "logs", platform: "Logs", compatibility: "unknown" },
+  { term: "log", platform: "Logs", compatibility: "unknown" },
+  { term: "run id", platform: "Run ID", compatibility: "unknown" },
+  { term: "trajectory", platform: "Trajectory", compatibility: "unknown" },
+  { term: "events", platform: "Events", compatibility: "unknown" },
 ];
 
 export function stripHtml(value = "") {
@@ -91,18 +116,43 @@ function detectOwnership(haystack) {
 }
 
 function detectArtifacts(haystack, ownership) {
-  const matches = ARTIFACT_TERMS.filter((term) => haystack.includes(term));
-  let level = "low";
+  const matches = ARTIFACT_DEFINITIONS.filter((item) => haystack.includes(item.term));
+  const unique = [];
+  const seen = new Set();
 
-  if (matches.length >= 2 || (ownership === "firsthand" && matches.length >= 1)) {
-    level = "high";
-  } else if (matches.length === 1) {
-    level = "medium";
+  for (const item of matches) {
+    const key = `${item.platform}:${item.compatibility}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
   }
+
+  let level = "low";
+  if (unique.length >= 2 || (ownership === "firsthand" && unique.length >= 1)) level = "high";
+  else if (unique.length === 1) level = "medium";
+
+  const compatibilityRank = { high: 4, partial: 3, unknown: 2, "adapter-needed": 1 };
+  const best = unique
+    .slice()
+    .sort((a, b) => (compatibilityRank[b.compatibility] || 0) - (compatibilityRank[a.compatibility] || 0))[0];
 
   return {
     level,
-    matches: [...new Set(matches)],
+    matches: [...new Set(matches.map((item) => item.term))],
+    platforms: unique.map((item) => ({
+      name: item.platform,
+      compatibility: item.compatibility,
+    })),
+    bestCompatibility: best?.compatibility || "unknown",
+  };
+}
+
+function detectNonFit(haystack) {
+  const matches = NON_FIT_RULES.filter((rule) => rule.pattern.test(haystack));
+  return {
+    reasons: matches.map((rule) => rule.reason),
+    penalty: Math.min(55, matches.reduce((total, rule) => total + rule.penalty, 0)),
   };
 }
 
@@ -121,13 +171,18 @@ export function scoreSignal(item, terms) {
   const technical = TECHNICAL_PATTERNS.some((pattern) => pattern.test(haystack));
   const pain = PAIN_PATTERNS.some((pattern) => pattern.test(haystack));
   const ownership = detectOwnership(haystack);
+  const concreteIncident = CONCRETE_INCIDENT_PATTERNS.some((pattern) => pattern.test(haystack));
+  const multistep = MULTISTEP_PATTERNS.some((pattern) => pattern.test(haystack));
+  const nonFit = detectNonFit(haystack);
 
   if (technical) relevanceScore += 16;
   if (pain) relevanceScore += 14;
-  if (/\b(success|succeeded|completed|200|green)\b.*\b(wrong|incorrect|bad|unexpected)\b/i.test(haystack)) {
+  if (concreteIncident) relevanceScore += 12;
+  if (multistep) relevanceScore += 12;
+  if (/\b(success|succeeded|completed|200|green)\b.*\b(wrong|incorrect|bad|unexpected|duplicate)\b/i.test(haystack)) {
     relevanceScore += 18;
   }
-  if (/\b(wrong tool|tool choice|tool selection|state|retrieval|retry|trace|span)\b/i.test(haystack)) {
+  if (/\b(wrong tool|tool choice|tool selection|state|retrieval|retry|trace|span|handoff|side effect)\b/i.test(haystack)) {
     relevanceScore += 10;
   }
   if (ownership === "firsthand") relevanceScore += 8;
@@ -150,12 +205,27 @@ export function scoreSignal(item, terms) {
   if (artifact.level === "high") relevanceScore += 8;
   else if (artifact.level === "medium") relevanceScore += 4;
 
-  relevanceScore = Math.min(100, relevanceScore);
+  relevanceScore = Math.min(100, Math.max(0, relevanceScore - nonFit.penalty));
   urgencyScore = Math.min(100, urgencyScore);
+
+  let activationReadiness = 0;
+  activationReadiness += Math.round(relevanceScore * 0.28);
+  activationReadiness += Math.round(urgencyScore * 0.18);
+  if (ownership === "firsthand") activationReadiness += 18;
+  if (concreteIncident) activationReadiness += 14;
+  if (multistep) activationReadiness += 12;
+  if (artifact.level === "high") activationReadiness += 14;
+  else if (artifact.level === "medium") activationReadiness += 7;
+  if (artifact.bestCompatibility === "high") activationReadiness += 10;
+  else if (artifact.bestCompatibility === "partial") activationReadiness += 5;
+  else if (artifact.bestCompatibility === "adapter-needed") activationReadiness -= 4;
+  activationReadiness -= nonFit.penalty;
+
+  activationReadiness = Math.min(100, Math.max(0, activationReadiness));
 
   const score = Math.min(
     100,
-    Math.round(relevanceScore * 0.62 + urgencyScore * 0.38)
+    Math.round(relevanceScore * 0.42 + urgencyScore * 0.23 + activationReadiness * 0.35)
   );
 
   return {
@@ -163,10 +233,17 @@ export function scoreSignal(item, terms) {
     score,
     relevanceScore,
     urgencyScore,
+    activationReadiness,
     ownership,
     firsthand: ownership === "firsthand",
+    concreteIncident,
+    multistep,
     artifactLikelihood: artifact.level,
     artifactMatches: artifact.matches,
+    artifactPlatforms: artifact.platforms,
+    artifactCompatibility: artifact.bestCompatibility,
+    nonFitReasons: nonFit.reasons,
+    nonFitPenalty: nonFit.penalty,
     matchedTerms: [...new Set(matchedTerms)],
   };
 }
@@ -174,7 +251,7 @@ export function scoreSignal(item, terms) {
 export async function fetchText(url, headers = {}) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "TraserSignalRadar/0.2 local research tool",
+      "User-Agent": "TraserSignalRadar/0.3 local research tool",
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
       ...headers,
     },
@@ -182,18 +259,14 @@ export async function fetchText(url, headers = {}) {
     signal: AbortSignal.timeout(7000),
   });
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} for ${url}`);
-  }
-
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
   return response.text();
 }
-
 
 export async function fetchJson(url, headers = {}) {
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "TraserSignalRadar/0.2",
+      "User-Agent": "TraserSignalRadar/0.3",
       Accept: "application/json",
       ...headers,
     },
@@ -201,19 +274,15 @@ export async function fetchJson(url, headers = {}) {
     signal: AbortSignal.timeout(7000),
   });
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} for ${url}`);
-  }
-
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
   return response.json();
 }
-
 
 export async function postJson(url, body, headers = {}) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "User-Agent": "TraserSignalRadar/0.2",
+      "User-Agent": "TraserSignalRadar/0.3",
       Accept: "application/json",
       "Content-Type": "application/json",
       ...headers,
@@ -223,9 +292,6 @@ export async function postJson(url, body, headers = {}) {
     signal: AbortSignal.timeout(7000),
   });
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} for ${url}`);
-  }
-
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
   return response.json();
 }
