@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { collectCompanies } from "../../../collectors/companies.js";
+import { collectCompanies } from "../../../collectors/companies.js";
 import { collectGitHub } from "../../../collectors/github.js";
 import { collectHackerNews } from "../../../collectors/hackernews.js";
 import { collectLinkedIn } from "../../../collectors/linkedin.js";
@@ -30,6 +31,9 @@ export async function GET() {
   const linkedin = linkedinResult.status === "fulfilled" ? linkedinResult.value : [];
   const github = githubResult.status === "fulfilled" ? githubResult.value : [];
   const hackernews = hackerNewsResult.status === "fulfilled" ? hackerNewsResult.value : [];
+  const companyRadar = companiesResult.status === "fulfilled"
+    ? companiesResult.value
+    : { companies: [], signals: [], coverage: { companiesTotal: 50, companiesWithEvidence: 0, highFitSignals: 0, searches: 0, providers: [], errors: [] } };
   const companiesDetailed =
     companyResult.status === "fulfilled"
       ? companyResult.value
@@ -109,7 +113,11 @@ export async function GET() {
       signals: companiesDetailed.signals,
       coverage: companiesDetailed.coverage,
     },
-    errors,
+    companies: companyRadar,
+    errors: [
+      ...errors,
+      ...(companyRadar.coverage?.errors || []).map((message) => ({ source: "companies", message })),
+    ],
     signals,
   });
 }
