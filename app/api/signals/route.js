@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { collectGitHub } from "../../../collectors/github.js";
 import { collectHackerNews } from "../../../collectors/hackernews.js";
 import { collectLinkedIn } from "../../../collectors/linkedin.js";
-import { collectReddit } from "../../../collectors/reddit.js";
+import { collectRedditDetailed } from "../../../collectors/reddit.js";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,13 +12,19 @@ export async function GET() {
   const startedAt = Date.now();
 
   const [redditResult, linkedinResult, githubResult, hackerNewsResult] = await Promise.allSettled([
-    collectReddit(),
+    collectRedditDetailed(),
     collectLinkedIn(),
     collectGitHub(),
     collectHackerNews(),
   ]);
 
-  const reddit = redditResult.status === "fulfilled" ? redditResult.value : [];
+  const redditDetailed =
+    redditResult.status === "fulfilled"
+      ? redditResult.value
+      : { items: [], coverage: [] };
+
+  const reddit = redditDetailed.items || [];
+  const redditCoverage = redditDetailed.coverage || [];
   const linkedin = linkedinResult.status === "fulfilled" ? linkedinResult.value : [];
   const github = githubResult.status === "fulfilled" ? githubResult.value : [];
   const hackernews = hackerNewsResult.status === "fulfilled" ? hackerNewsResult.value : [];
@@ -50,6 +56,10 @@ export async function GET() {
     return bt - at;
   });
 
+  const redditCommunityCounts = Object.fromEntries(
+    redditCoverage.map((entry) => [entry.community, entry.matchedCount])
+  );
+
   return NextResponse.json({
     scannedAt: new Date().toISOString(),
     durationMs: Date.now() - startedAt,
@@ -65,6 +75,13 @@ export async function GET() {
       highArtifact: signals.filter((item) => item.artifactLikelihood === "high").length,
       activationReady: signals.filter((item) => (item.activationReadiness || 0) >= 70).length,
       nonFit: signals.filter((item) => (item.nonFitReasons || []).length > 0).length,
+    },
+    reddit: {
+      coverage: redditCoverage,
+      communityCounts: redditCommunityCounts,
+      communitiesWithMatches: redditCoverage.filter((entry) => entry.matchedCount > 0).length,
+      communitiesHealthy: redditCoverage.filter((entry) => entry.status === "ok").length,
+      communitiesTotal: redditCoverage.length,
     },
     errors,
     signals,
