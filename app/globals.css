@@ -87,7 +87,7 @@ h1 {
 
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.4fr auto;
+  grid-template-columns: 1fr 1fr 1fr 1.1fr 1.4fr auto;
   gap: 10px;
   align-items: end;
   border: 1px solid #232831;
@@ -468,4 +468,64 @@ strong.cool { color: #aeb6c2; }
   .signal-top { align-items: flex-start; flex-direction: column; }
   .conversion-table { overflow-x: auto; }
   .conversion-row { min-width: 680px; }
+}
+
+
+.reddit-coverage {
+  border: 1px solid #232831;
+  background: rgba(16, 19, 24, 0.94);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 18px 0;
+}
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.coverage-card {
+  text-align: left;
+  border: 1px solid #2a3039;
+  background: #12161b;
+  color: #d7dce3;
+  border-radius: 10px;
+  padding: 11px;
+  cursor: pointer;
+}
+
+.coverage-card:hover,
+.coverage-card.active {
+  border-color: #596476;
+  background: #171c23;
+}
+
+.coverage-card span,
+.coverage-card strong,
+.coverage-card small {
+  display: block;
+}
+
+.coverage-card span {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.coverage-card strong {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.coverage-card small {
+  color: #737d8c;
+  font-size: 10px;
+}
+
+@media (max-width: 900px) {
+  .coverage-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 620px) {
+  .coverage-grid { grid-template-columns: 1fr; }
 }
