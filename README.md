@@ -10,6 +10,7 @@ The goal is not generic lead generation. Signl now works in two directions: deve
 - GitHub public issues
 - Hacker News stories and comments
 - LinkedIn discovery through Serper/Google results, with Bing RSS as a fallback
+- a 50-company agent-native watchlist that searches public review surfaces for customer-visible failures
 - a curated 50-company agent-native watchlist
 - public complaint discovery across Trustpilot, Reddit, G2, Capterra, Product Hunt, and Reviews.io search results
 - company-level aggregation with Traser-shaped failure classifications
@@ -22,6 +23,7 @@ The goal is not generic lead generation. Signl now works in two directions: deve
 - blocker tracking when someone does not complete an investigation
 - source/query conversion summaries
 - lightweight repeated-author relationship hints
+- company-level account scoring from public complaint evidence, with local stages for Watch → Reproduce → Contacted → Investigation
 - a simple Vercel-ready dashboard
 
 ## Company pain radar
@@ -55,6 +57,45 @@ The company dashboard shows:
 The intended workflow is:
 
 public customer symptom → company → confirm Traser-shaped failure → identify technical owner → reproduce only when credible → ask to investigate a real run.
+
+## Company pain radar
+
+Signl also tracks 50 smaller agent-native companies selected for the kind of multi-step, tool-using, customer-facing workflows where Traser may be useful.
+
+The watchlist lives in `collectors/company-watchlist.js`. It intentionally includes a mix of browser/computer-use agents, coding agents, voice agents, support agents, CRM/GTM agents, financial agents, and autonomous operations products.
+
+The company collector does not assume that a bad review proves a Traser problem. It uses public search results from surfaces such as:
+
+- Trustpilot
+- Reddit
+- G2
+- Capterra
+- Product Hunt
+- Reviews.io
+
+Searches are batched to avoid 50 separate API calls on every refresh. Results are then mapped back to companies and classified for customer-visible failure shapes such as:
+
+- completed-but-wrong behavior
+- retry loops
+- duplicate side effects
+- wrong external actions
+- state or memory drift
+- handoff or verification failures
+
+Obvious billing, support, login, outage, and refund-dispute complaints are penalized so they do not masquerade as Traser validation.
+
+The dashboard keeps the distinction explicit:
+
+```text
+customer complaint
+→ possible failure shape
+→ inspect evidence
+→ reproduce only when credible
+→ identify technical owner
+→ ask for a real Traser investigation
+```
+
+Company stages are stored locally in the browser. Marking an account `Ignore` hides it from the active view; `Show all 50` lets you restore it.
 
 ## Signal model
 
