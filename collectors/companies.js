@@ -104,7 +104,7 @@ function companyMatchScore(company, haystack) {
   }
 
   if (AMBIGUOUS_NAMES.has(name)) {
-    return score >= 6 ? score : 0;
+    return score >= 5 ? score : 0;
   }
 
   return score >= 4 ? score : 0;
@@ -150,7 +150,19 @@ function scoreComplaint(item, company) {
 }
 
 function buildSearchQuery(batch) {
-  const companies = batch.map((company) => `"${company.queryName}"`).join(" OR ");
+  const companies = batch
+    .map((company) => {
+      const name = company.name.toLowerCase();
+      if (!AMBIGUOUS_NAMES.has(name)) return `"${company.name}"`;
+
+      const qualifiers = company.queryName
+        .split(/\s+/)
+        .filter((token) => token.toLowerCase() !== name && token.length >= 3)
+        .slice(0, 2)
+        .join(" ");
+      return `("${company.name}" ${qualifiers})`;
+    })
+    .join(" OR ");
   const sites = PUBLIC_REVIEW_SURFACES.map((domain) => `site:${domain}`).join(" OR ");
   return `(${companies}) (${sites}) ("wrong" OR "broken" OR "failed" OR "doesn't work" OR "not working" OR "retry" OR "keeps" OR "completed" OR "duplicate" OR "bug")`;
 }
