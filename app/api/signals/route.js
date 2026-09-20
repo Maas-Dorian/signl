@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { collectCompanies } from "../../../collectors/companies.js";
-import { collectCompanies } from "../../../collectors/companies.js";
 import { collectGitHub } from "../../../collectors/github.js";
 import { collectHackerNews } from "../../../collectors/hackernews.js";
 import { collectLinkedIn } from "../../../collectors/linkedin.js";
@@ -13,13 +12,14 @@ export const maxDuration = 30;
 export async function GET() {
   const startedAt = Date.now();
 
-  const [redditResult, linkedinResult, githubResult, hackerNewsResult, companyResult] = await Promise.allSettled([
-    collectRedditDetailed(),
-    collectLinkedIn(),
-    collectGitHub(),
-    collectHackerNews(),
-    collectCompanies(),
-  ]);
+  const [redditResult, linkedinResult, githubResult, hackerNewsResult, companyResult] =
+    await Promise.allSettled([
+      collectRedditDetailed(),
+      collectLinkedIn(),
+      collectGitHub(),
+      collectHackerNews(),
+      collectCompanies(),
+    ]);
 
   const redditDetailed =
     redditResult.status === "fulfilled"
@@ -31,9 +31,6 @@ export async function GET() {
   const linkedin = linkedinResult.status === "fulfilled" ? linkedinResult.value : [];
   const github = githubResult.status === "fulfilled" ? githubResult.value : [];
   const hackernews = hackerNewsResult.status === "fulfilled" ? hackerNewsResult.value : [];
-  const companyRadar = companiesResult.status === "fulfilled"
-    ? companiesResult.value
-    : { companies: [], signals: [], coverage: { companiesTotal: 50, companiesWithEvidence: 0, highFitSignals: 0, searches: 0, providers: [], errors: [] } };
   const companiesDetailed =
     companyResult.status === "fulfilled"
       ? companyResult.value
@@ -68,6 +65,10 @@ export async function GET() {
     }
   }
 
+  for (const message of companiesDetailed.coverage?.errors || []) {
+    errors.push({ source: "companies", message });
+  }
+
   const signals = [...reddit, ...linkedin, ...github, ...hackernews].sort((a, b) => {
     if ((b.activationReadiness || 0) !== (a.activationReadiness || 0)) {
       return (b.activationReadiness || 0) - (a.activationReadiness || 0);
@@ -97,9 +98,9 @@ export async function GET() {
       highArtifact: signals.filter((item) => item.artifactLikelihood === "high").length,
       activationReady: signals.filter((item) => (item.activationReadiness || 0) >= 70).length,
       nonFit: signals.filter((item) => (item.nonFitReasons || []).length > 0).length,
-      targetCompanies: companiesDetailed.coverage.companiesTotal,
-      companiesWithEvidence: companiesDetailed.coverage.companiesWithEvidence,
-      companyHighFitSignals: companiesDetailed.coverage.highFitSignals,
+      targetCompanies: companiesDetailed.coverage?.companiesTotal ?? 50,
+      companiesWithEvidence: companiesDetailed.coverage?.companiesWithEvidence ?? 0,
+      companyHighFitSignals: companiesDetailed.coverage?.highFitSignals ?? 0,
     },
     reddit: {
       coverage: redditCoverage,
@@ -109,15 +110,11 @@ export async function GET() {
       communitiesTotal: redditCoverage.length,
     },
     companies: {
-      accounts: companiesDetailed.companies,
-      signals: companiesDetailed.signals,
-      coverage: companiesDetailed.coverage,
+      accounts: companiesDetailed.companies || [],
+      signals: companiesDetailed.signals || [],
+      coverage: companiesDetailed.coverage || {},
     },
-    companies: companyRadar,
-    errors: [
-      ...errors,
-      ...(companyRadar.coverage?.errors || []).map((message) => ({ source: "companies", message })),
-    ],
+    errors,
     signals,
   });
 }
