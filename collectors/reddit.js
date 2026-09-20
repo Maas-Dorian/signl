@@ -1,5 +1,10 @@
 import { XMLParser } from "fast-xml-parser";
-import { HOURS_BACK, REDDIT_SUBREDDITS, SIGNAL_TERMS } from "./config.js";
+import {
+  HOURS_BACK,
+  REDDIT_SEARCH_QUERY,
+  REDDIT_SUBREDDITS,
+  SIGNAL_TERMS,
+} from "./config.js";
 import { fetchText, isWithinHours, postJson, scoreSignal, stripHtml, toArray, uniqueByUrl } from "./utils.js";
 
 const parser = new XMLParser({
@@ -44,18 +49,69 @@ function parseFeed(xml, subreddit, kind) {
   });
 }
 
+function scoreRedditItem(item) {
+  if (item.kind !== "comment") return scoreSignal(item, SIGNAL_TERMS);
+
+  const displayTitle = item.title;
+  const scored = scoreSignal(
+    {
+      ...item,
+      title: "",
+    },
+    SIGNAL_TERMS
+  );
+
+  return {
+    ...scored,
+    title: displayTitle,
+  };
+}
+
+function scoreRecent(items) {
+  const recent = items.filter((item) => isWithinHours(item.createdAt, HOURS_BACK));
+  const matched = recent
+    .map(scoreRedditItem)
+    .filter((item) => item.matchedTerms.length > 0);
+
+  return {
+    recent,
+    matched,
+  };
+}
+
 async function fetchSubredditFeed(subreddit, kind) {
   const path = kind === "comment" ? "comments/.rss?limit=100" : "new/.rss?limit=100";
   const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${path}`;
   const xml = await fetchText(url);
   const parsed = parseFeed(xml, subreddit, kind);
-  const recent = parsed.filter((item) => isWithinHours(item.createdAt, HOURS_BACK));
-  const matched = recent
-    .map((item) => scoreSignal(item, SIGNAL_TERMS))
-    .filter((item) => item.matchedTerms.length > 0);
+  const { recent, matched } = scoreRecent(parsed);
 
   return {
     kind,
+    rawCount: parsed.length,
+    recentCount: recent.length,
+    matched,
+  };
+}
+
+async function fetchSubredditSearch(subreddit) {
+  const params = new URLSearchParams({
+    q: REDDIT_SEARCH_QUERY,
+    restrict_sr: "on",
+    sort: "new",
+    t: "week",
+    limit: "100",
+  });
+
+  const url =
+    `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/search.rss?${params.toString()}`;
+
+  const xml = await fetchText(url);
+  const parsed = parseFeed(xml, subreddit, "post");
+  const { recent, matched } = scoreRecent(parsed);
+
+  return {
+    kind: "search",
     rawCount: parsed.length,
     recentCount: recent.length,
     matched,
@@ -103,8 +159,13 @@ async function fetchSerperFallback(subreddit) {
 }
 
 async function collectSubreddit(subreddit) {
-  const kinds = ["post", "comment"];
-  const settled = await Promise.allSettled(kinds.map((kind) => fetchSubredditFeed(subreddit, kind)));
+  const jobs = [
+    ["post", () => fetchSubredditFeed(subreddit, "post")],
+    ["comment", () => fetchSubredditFeed(subreddit, "comment")],
+    ["search", () => fetchSubredditSearch(subreddit)],
+  ];
+
+  const settled = await Promise.allSettled(jobs.map(([, run]) => run()));
 
   const items = [];
   const errors = [];
@@ -113,7 +174,7 @@ async function collectSubreddit(subreddit) {
   const kindsOk = [];
 
   settled.forEach((result, index) => {
-    const kind = kinds[index];
+    const kind = jobs[index][0];
     if (result.status === "fulfilled") {
       kindsOk.push(kind);
       rawCount += result.value.rawCount;
@@ -129,7 +190,7 @@ async function collectSubreddit(subreddit) {
   });
 
   let fallbackUsed = false;
-  if (kindsOk.length === 0 && process.env.SERPER_API_KEY) {
+  if (items.length === 0 && process.env.SERPER_API_KEY) {
     try {
       const fallbackItems = await fetchSerperFallback(subreddit);
       if (fallbackItems.length > 0) {
@@ -159,7 +220,7 @@ async function collectSubreddit(subreddit) {
       errors,
       fallbackUsed,
       status:
-        kindsOk.length === kinds.length
+        kindsOk.length === jobs.length
           ? "ok"
           : kindsOk.length > 0
             ? "partial"
