@@ -1,3 +1,4 @@
+import { collectCompanies } from "./companies.js";
 import { collectGitHub } from "./github.js";
 import { collectHackerNews } from "./hackernews.js";
 import { collectLinkedIn } from "./linkedin.js";
@@ -39,20 +40,43 @@ function printSignals(items) {
   console.log(`\n${filtered.length} signal(s) above MIN_SCORE=${MIN_SCORE}.`);
 }
 
-async function main() {
-  console.log("Scanning Reddit, LinkedIn, GitHub, and Hacker News...");
+function printCompanies(result) {
+  console.log("\n" + "#".repeat(80));
+  console.log(
+    `Company radar: ${result.coverage.companiesTotal} watched, ${result.coverage.companiesWithEvidence} with public evidence, ${result.coverage.highFitSignals} high-fit complaint signals.`
+  );
 
-  const [reddit, linkedin, github, hackernews] = await Promise.all([
+  for (const company of result.companies.slice(0, 15)) {
+    console.log("\n" + "-".repeat(80));
+    console.log(
+      `${company.name} | priority=${company.priority} | account=${company.accountScore} | matches=${company.evidenceCount} | high-fit=${company.highFitCount}`
+    );
+    console.log(company.productShape);
+    if (company.shapes.length) console.log(`observed: ${company.shapes.join(", ")}`);
+    console.log(`next: ${company.nextAction}`);
+    for (const evidence of company.evidence.slice(0, 2)) {
+      console.log(`  - [${evidence.sourceSurface}] fit=${evidence.fitScore} ${evidence.title}`);
+      console.log(`    ${evidence.url}`);
+    }
+  }
+}
+
+async function main() {
+  console.log("Scanning Reddit, LinkedIn, GitHub, Hacker News, and target companies...");
+
+  const [reddit, linkedin, github, hackernews, companies] = await Promise.all([
     collectReddit(),
     collectLinkedIn(),
     collectGitHub(),
     collectHackerNews(),
+    collectCompanies(),
   ]);
 
   console.log(
     `Found ${reddit.length} Reddit, ${linkedin.length} LinkedIn, ${github.length} GitHub, and ${hackernews.length} HN candidates.`
   );
 
+  printCompanies(companies);
   printSignals([...reddit, ...linkedin, ...github, ...hackernews]);
 }
 
