@@ -5,6 +5,8 @@ export const REDDIT_SUBREDDITS = [
   "AI_Agents",
   "LocalLLaMA",
   "LLMDevs",
+  "MCP",
+  "RAG",
 ];
 
 export const SIGNAL_TERMS = [
@@ -39,6 +41,18 @@ export const SIGNAL_TERMS = [
   "retrieval",
   "evaluator",
   "verification",
+  "readback",
+  "read-back",
+  "duplicate",
+  "side effect",
+  "handoff",
+  "upstream",
+  "downstream",
+  "idempotency",
+  "opentelemetry",
+  "openinference",
+  "phoenix",
+  "braintrust",
 ];
 
 export const LINKEDIN_QUERIES = [
@@ -50,6 +64,8 @@ export const LINKEDIN_QUERIES = [
   '"LangSmith" debugging',
   '"agent failed" LLM',
   '"multi-agent" debugging',
+  '"retry" agent duplicate',
+  '"agent state" overwritten',
 ];
 
 export const GITHUB_QUERIES = [
@@ -59,6 +75,8 @@ export const GITHUB_QUERIES = [
   'langgraph debug is:issue',
   'langsmith debug is:issue',
   '"agent state" bug is:issue',
+  '"retry" agent duplicate is:issue',
+  '"tool call" "side effect" is:issue',
 ];
 
 export const HN_QUERIES = [
@@ -71,4 +89,5 @@ export const HN_QUERIES = [
   "agent observability",
   "agent failure",
   "multi-agent debugging",
+  "agent retry duplicate",
 ];
