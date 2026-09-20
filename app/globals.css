@@ -45,7 +45,7 @@ h1 {
 }
 
 .subhead {
-  max-width: 720px;
+  max-width: 760px;
   margin: 10px 0 0;
   color: #9aa3b1;
   line-height: 1.55;
@@ -149,6 +149,55 @@ select {
   color: #ef9da8;
 }
 
+.conversion-panel {
+  border: 1px solid #232831;
+  background: rgba(16, 19, 24, 0.94);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 18px 0;
+}
+
+.section-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.section-title p {
+  margin: 5px 0 14px;
+  color: #747e8c;
+  font-size: 12px;
+}
+
+.conversion-table {
+  display: grid;
+  gap: 2px;
+}
+
+.conversion-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(64px, 0.5fr));
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  border-top: 1px solid #1f242c;
+  color: #b8c0cc;
+  font-size: 12px;
+}
+
+.conversion-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversion-head {
+  border-top: 0;
+  color: #687281;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+
 .list-header {
   display: flex;
   justify-content: space-between;
@@ -205,6 +254,14 @@ select {
 .source.github { background: #1b1d22; color: #d5dae2; }
 .source.hackernews { background: #2b2116; color: #ffc27f; }
 
+.relationship-pill {
+  color: #a9c7ff;
+  border: 1px solid #2b456a;
+  background: #111b29;
+  border-radius: 999px;
+  padding: 3px 7px;
+}
+
 .signal h3 {
   margin: 13px 0 8px;
   font-size: 18px;
@@ -251,9 +308,7 @@ select {
   font-weight: 600;
 }
 
-.source-link-button:hover {
-  background: #ffffff;
-}
+.source-link-button:hover { background: #ffffff; }
 
 .source-url {
   min-width: 0;
@@ -266,7 +321,7 @@ select {
 
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin-top: 15px;
 }
@@ -288,7 +343,7 @@ select {
 }
 
 .score-grid strong {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -318,6 +373,18 @@ strong.cool { color: #aeb6c2; }
   background: #181424;
 }
 
+.chips .positive {
+  color: #9dddb2;
+  border-color: #2c5b3b;
+  background: #102018;
+}
+
+.chips .nonfit {
+  color: #ef9da8;
+  border-color: #63323a;
+  background: #211216;
+}
+
 .timestamp-note {
   color: #747e8c;
   font-size: 11px;
@@ -328,17 +395,14 @@ strong.cool { color: #aeb6c2; }
   margin-top: 15px;
   padding-top: 14px;
   border-top: 1px solid #232831;
-  display: flex;
+  display: grid;
   gap: 12px;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 .outcomes {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .outcomes button {
@@ -364,6 +428,17 @@ strong.cool { color: #aeb6c2; }
   border-radius: 999px;
   font-size: 11px;
   padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.blocker-control {
+  color: #8992a1;
+  font-size: 11px;
+  max-width: 320px;
+}
+
+.blocker-control select {
+  margin-top: 5px;
 }
 
 .empty {
@@ -377,9 +452,10 @@ strong.cool { color: #aeb6c2; }
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
   .controls { grid-template-columns: repeat(2, 1fr); }
-  .score-grid { grid-template-columns: repeat(2, 1fr); }
+  .score-grid { grid-template-columns: repeat(3, 1fr); }
   .topbar { flex-direction: column; }
   .refresh { width: 100%; }
+  .conversion-row { grid-template-columns: minmax(150px, 2fr) repeat(5, minmax(48px, 0.5fr)); }
 }
 
 @media (max-width: 620px) {
@@ -389,6 +465,7 @@ strong.cool { color: #aeb6c2; }
   .score-grid { grid-template-columns: 1fr 1fr; }
   .source-link-row { align-items: flex-start; flex-direction: column; }
   .source-url { width: 100%; }
-  .actions { align-items: flex-start; flex-direction: column; }
-  .outcomes { justify-content: flex-start; }
+  .signal-top { align-items: flex-start; flex-direction: column; }
+  .conversion-table { overflow-x: auto; }
+  .conversion-row { min-width: 680px; }
 }
